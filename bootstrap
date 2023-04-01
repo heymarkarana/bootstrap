@@ -22,10 +22,17 @@ sub_install () {
     ssh-keygen -t rsa -b 2048 -C "$RSA_EmailAddy"
     cat ~/.ssh/id_rsa.pub
     pbcopy < ~/.ssh/id_rsa.pub
+
     echo -e "Please enter your SSH key (already copied) into your GitLab profile. \n Opening the webpage..."
-    sleep 3
+    sleep 1
     open -a "Safari" & sleep 1 && osascript -e 'tell application "Safari" to open location "https://gitlab.com/-/profile/keys"'
     read -n 1 -r -s -p $'Press enter to continue...\n'
+    
+    echo -e "Please enter your SSH key (already copied) into your GitHub profile. \n Opening the webpage..."
+    sleep 1
+    open -a "Safari" & sleep 1 && osascript -e 'tell application "Safari" to open location "https://github.com/settings/keys"'
+    read -n 1 -r -s -p $'Press enter to continue...\n'
+    
     echo "Installing dotFiles..."
     mkdir -p "$TARGET"
     git clone $SOURCE $TARGET
