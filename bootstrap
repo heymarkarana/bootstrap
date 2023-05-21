@@ -4,7 +4,7 @@ BIN_NAME=$(basename "$0")
 COMMAND_NAME=$1
 
 PROJECT="dotFiles"
-SOURCE="git@gitlab.com:heymarkarana/$PROJECT.git"
+SOURCE="git@github.com:heymarkarana/$PROJECT.git"
 TARGET="$HOME/.dotFiles"
 INPUTVARIABLE=$1
 
