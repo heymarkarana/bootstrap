@@ -1,0 +1,47 @@
+#!/usr/bin/env zsh
+
+BIN_NAME=$(basename "$0")
+COMMAND=$1
+PROJECT="dotFiles"
+REPO="git@git.kuzcotopia.io:marana/$PROJECT.git"
+TARGET="$HOME/.dotFiles"
+
+show_help () {
+	echo "Usage: $BIN_NAME <command>"
+	echo
+	echo "Commands:"
+	echo "   install                    Set up .dotFiles from scratch"
+	echo "   refresh                    Remove and reinstall .dotFiles"
+}
+
+install_dotfiles () {
+
+	# Generate SSH Key and install into Git repos
+	$HOME/.bootstrap/GitHarness.sh
+
+	echo "Cloning dotFiles..."
+	mkdir -p "$TARGET"
+	git clone $REPO $TARGET
+}
+
+refresh_dotfiles () {
+	rm -rf "$TARGET"
+	install_dotfiles
+}
+
+case $COMMAND in
+	"" | "-h" | "--help")
+		show_help
+		;;
+	install)
+		install_dotfiles
+		;;
+	refresh)
+		refresh_dotfiles
+		;;
+	*)
+		echo "Unknown command: $COMMAND" >&2
+		show_help
+		exit 1
+		;;
+esac
