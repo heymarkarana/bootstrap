@@ -3,7 +3,7 @@
 BIN_NAME=$(basename "$0")
 COMMAND=$1
 PROJECT="dotFiles"
-REPO="http://git.kuzcotopia.io:3000:marana/$PROJECT.git"
+REPO="http://git.kuzcotopia.io:3000/marana/$PROJECT.git"
 TARGET="$HOME/.dotFiles"
 
 show_help () {
@@ -26,7 +26,7 @@ install_dotfiles () {
 
 refresh_dotfiles () {
 	rm -rf "$TARGET"
-	install_dotfiles
+	git clone $REPO $TARGET
 }
 
 case $COMMAND in
