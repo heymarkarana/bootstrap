@@ -7,7 +7,7 @@ From there, it will proceed to clone a dotFiles folder that can be further proce
 ```
 sudo softwareupdate -i -a
 xcode-select --install
-git clone https://github.com/heymarkarana/bootstrap.git $HOME/.bootstrap
+git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap
 $HOME/.bootstrap/bootstrap install
 ```
 
