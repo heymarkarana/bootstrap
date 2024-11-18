@@ -6,7 +6,8 @@ PROJECT="dotFiles"
 REPO="git@git.kuzcotopia.io:marana/$PROJECT.git"
 TARGET="$HOME/.dotFiles"
 
-show_help () {
+# Function to show help information
+show_help() {
 	echo "Usage: $BIN_NAME <command>"
 	echo
 	echo "Commands:"
@@ -14,21 +15,50 @@ show_help () {
 	echo "   refresh                    Remove and reinstall .dotFiles"
 }
 
-install_dotfiles () {
+# Function to check the OS type
+is_macos() {
+	[[ "$(uname)" == "Darwin" ]]
+}
+
+# Function to install Homebrew on macOS
+install_homebrew() {
+	if is_macos; then
+		if ! command -v brew &>/dev/null; then
+			echo "Installing Homebrew..."
+			/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+			echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
+			eval "$(/opt/homebrew/bin/brew shellenv)"
+		else
+			echo "Homebrew is already installed."
+		fi
+	else
+		echo "Skipping Homebrew installation: not on macOS."
+	fi
+}
+
+# Function to set up dotFiles
+install_dotfiles() {
+	echo "Setting up .dotFiles..."
+
+	# Install Homebrew (if applicable)
+	install_homebrew
 
 	# Generate SSH Key and install into Git repos
 	$HOME/.bootstrap/GitHarness.sh
 
 	echo "Cloning dotFiles..."
 	mkdir -p "$TARGET"
-	git clone $REPO $TARGET
+	git clone "$REPO" "$TARGET"
 }
 
-refresh_dotfiles () {
+# Function to refresh dotFiles
+refresh_dotfiles() {
+	echo "Refreshing .dotFiles..."
 	rm -rf "$TARGET"
 	install_dotfiles
 }
 
+# Command handler
 case $COMMAND in
 	"" | "-h" | "--help")
 		show_help
