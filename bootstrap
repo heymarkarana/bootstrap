@@ -55,7 +55,7 @@ install_dotfiles() {
 refresh_dotfiles() {
 	echo "Refreshing .dotFiles..."
 	rm -rf "$TARGET"
-	install_dotfiles
+	git clone "$REPO" "$TARGET"
 }
 
 # Command handler
