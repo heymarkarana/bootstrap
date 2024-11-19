@@ -3,7 +3,7 @@
 BIN_NAME=$(basename "$0")
 COMMAND=$1
 PROJECT="dotFiles"
-REPO="git@git.kuzcotopia.io:marana/$PROJECT.git"
+REPO="marana@git.kuzcotopia.io:marana/$PROJECT.git"
 TARGET="$HOME/.dotFiles"
 
 # Function to show help information
