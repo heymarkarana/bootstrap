@@ -3,7 +3,7 @@
 BIN_NAME=$(basename "$0")
 COMMAND=$1
 PROJECT="dotFiles"
-REPO="git@git.kuzcotopia.io:marana/$PROJECT.git"
+REPO="marana@git.kuzcotopia.io:marana/$PROJECT.git"
 TARGET="$HOME/.dotFiles"
 
 # Function to show help information
@@ -55,7 +55,13 @@ install_dotfiles() {
 refresh_dotfiles() {
 	echo "Refreshing .dotFiles..."
 	rm -rf "$TARGET"
+<<<<<<< HEAD
 	git clone "$REPO" "$TARGET"
+=======
+	install_dotfiles
+
+	cd ~/.dotFiles
+>>>>>>> main
 }
 
 # Command handler
