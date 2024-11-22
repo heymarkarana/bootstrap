@@ -38,9 +38,13 @@ install_homebrew() {
 		if ! command -v brew &>/dev/null; then
 			echo "Installing Homebrew..."
 			/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-			echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.bash_profile
-			echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zshrc
+			log "adding Homebrew environment variables to BASH"
+			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.bash_profile
+			log "adding Homebrew environment variables to ZSH"
+			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zshrc
+			log "reloading ZSH profile"
 			source ${HOME}/.zshrc
+			log "the theory is good, but the practice is..."
 		else
 			echo "Homebrew is already installed."
 		fi
@@ -65,7 +69,9 @@ install_dotfiles() {
 	echo "Cloning dotFiles..."
 	git clone "$REPO" "$TARGET"
 
+	log "I should try to move to the dotFiles directory"
 	cd "$TARGET" || exit
+	echo pwd
 }
 
 # Function to refresh dotFiles
