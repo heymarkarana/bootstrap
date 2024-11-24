@@ -68,27 +68,26 @@ install_dotfiles() {
 	install_homebrew
 
 	# Generate SSH Key and install into Git repos
-	$HOME/.bootstrap/GitHarness.sh
+	${HOME}/.bootstrap/GitHarness.sh
 
 	echo "Cloning dotFiles..."
-	git clone "$REPO" "$TARGET"
+	git clone ${REPO} ${TARGET}
 
 	echo "I should try to move to the dotFiles directory"
-	cd "$TARGET" || exit
-	echo pwd
+	cd ${TARGET}
+	pwd
 
-	echo 'eval "$(/opt/homebrew/bin/brew shellenv" >> ${HOME}/.zshrc'
-	$(/opt/homebrew/bin/brew shellenv)
+	source ${HOME}/.zshrc
 
 }
 
 # Function to refresh dotFiles
 refresh_dotfiles() {
 	echo "Refreshing .dotFiles..."
-	rm -rf "$TARGET"
-	git clone "$REPO" "$TARGET"
+	rm -rf ${TARGET}
+	git clone ${REPO} ${TARGET}
 
-	cd "$TARGET" || exit
+	cd ${TARGET}
 }
 
 # Command handler
