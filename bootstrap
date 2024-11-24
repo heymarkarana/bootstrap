@@ -43,7 +43,7 @@ install_homebrew() {
 #			echo -e "adding Homebrew environment variables to BASH"
 #			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.bash_profile
 #			echo "adding Homebrew environment variables to ZSH"
-#			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zshrc
+			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zshrc
 			echo "reloading ZSH profile"
 			source ${HOME}/.zshrc
 			echo "the theory is good, but the practice is..."
