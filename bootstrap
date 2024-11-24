@@ -43,10 +43,12 @@ install_homebrew() {
 #			echo -e "adding Homebrew environment variables to BASH"
 #			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.bash_profile
 #			echo "adding Homebrew environment variables to ZSH"
-			echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zshrc
+			echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ${HOME}/.zshrc
 			echo "reloading ZSH profile"
-			source ${HOME}/.zshrc
+			#source ${HOME}/.zshrc
 			echo "the theory is good, but the practice is..."
+			/opt/homebrew/bin/brew shellenv
+			echo "ok. trying this one too."
 		else
 			echo "Homebrew is already installed."
 		fi
@@ -75,10 +77,8 @@ install_dotfiles() {
 	cd "$TARGET" || exit
 	echo pwd
 
-	echo >> /${HOME}/.zprofile
-	echo 'eval "$(/opt/homebrew/bin/brew shellenv" >> ${HOME}/.zprofile'
-	echo "$(/opt/homebrew/bin/brew shellenv)"
-
+	echo 'eval "$(/opt/homebrew/bin/brew shellenv" >> ${HOME}/.zshrc'
+	$(/opt/homebrew/bin/brew shellenv)
 
 }
 
