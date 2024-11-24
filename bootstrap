@@ -1,3 +1,123 @@
 #!/usr/bin/env bash
 
-source ${HOME}/.bootstrap/bootstrap_main.sh
+BIN_NAME=$(basename "$0")
+COMMAND=$1
+PROJECT="dotFiles"
+REPO="marana@git.kuzcotopia.io:marana/$PROJECT.git"
+TARGET="$HOME/.dotFiles"
+
+# Function to show help information
+show_help() {
+  echo "Usage: $BIN_NAME <command>"
+  echo
+  echo "Commands:"
+  echo "   install                    Set up .dotFiles from scratch"
+  echo "   refresh                    Remove and reinstall .dotFiles"
+}
+
+# Function to check the OS type
+is_macos() {
+  [[ "$(uname)" == "Darwin" ]]
+}
+
+# Function to install Homebrew on macOS
+install_homebrew() {
+  if is_macos; then
+	if ! command -v brew &>/dev/null; then
+	  echo "Installing Homebrew..."
+	  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+	  echo "Adding Homebrew environment variables to Bash and ZSH..."
+	  # Add Homebrew environment variables to .bashrc
+	  if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.bashrc"; then
+		echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.bashrc"
+	  fi
+
+	  # Add Homebrew environment variables to .zshrc
+	  if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
+		echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.zshrc"
+	  fi
+
+	  # Execute brew shellenv for the current Bash session
+	  eval "$(/opt/homebrew/bin/brew shellenv)"
+
+	  echo "Homebrew installation complete and environment variables set."
+	else
+	  echo "Homebrew is already installed."
+	fi
+  else
+	echo "Skipping Homebrew installation: not on macOS."
+  fi
+}
+
+# Function to install ZSH
+install_zsh() {
+  if command -v zsh &>/dev/null; then
+	echo "ZSH is already installed."
+  else
+	echo "Installing ZSH..."
+	if is_macos; then
+	  brew install zsh
+	else
+	  sudo apt update
+	  sudo apt install -y zsh
+	fi
+	echo "ZSH installation complete."
+  fi
+}
+
+# Function to set up dotFiles
+install_dotfiles() {
+  echo "Setting up .dotFiles..."
+
+  # Install Homebrew (if applicable)
+  install_homebrew
+
+  # Install ZSH
+  install_zsh
+
+  # Generate SSH Key and install into Git repos
+  "${HOME}/.bootstrap/GitHarness.sh"
+
+  echo "Cloning dotFiles..."
+  git clone "${REPO}" "${TARGET}"
+
+  echo "Moving to the dotFiles directory..."
+  cd "${TARGET}" || exit 1
+  pwd
+
+  # Source bashrc to ensure Homebrew variables are available
+  if [[ -f "${HOME}/.bashrc" ]]; then
+	source "${HOME}/.bashrc"
+  fi
+
+  echo "DotFiles setup complete. Switching to ZSH..."
+  exec zsh
+}
+
+# Function to refresh dotFiles
+refresh_dotfiles() {
+  echo "Refreshing .dotFiles..."
+  rm -rf "${TARGET}"
+  git clone "${REPO}" "${TARGET}"
+
+  cd "${TARGET}" || exit 1
+}
+
+# Command handler
+case $COMMAND in
+  "" | "-h" | "--help")
+	show_help
+	;;
+  install)
+	install_dotfiles
+	;;
+  refresh)
+	refresh_dotfiles
+	;;
+  *)
+	echo "Unknown command: $COMMAND" >&2
+	show_help
+	exit 1
+	;;
+esac
