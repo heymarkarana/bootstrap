@@ -10,6 +10,10 @@ xcode-select --install
 git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap
 $HOME/.bootstrap/bootstrap install
 ```
+**Alternatively**
+```
+git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install
+```
 
 **Commands:**<BR>
 **install** - Fresh install of .dotfiles<BR>
