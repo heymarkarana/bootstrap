@@ -1,18 +1,31 @@
 #!/usr/bin/env bash
 
 BIN_NAME=$(basename "$0")
-COMMAND=$1
+COMMAND=$1 # Command entered - install or refresh
+BRANCH=$2  # The branch name or commit reference can be passed as the second argument
 PROJECT="dotFiles"
-REPO="marana@git.kuzcotopia.io:marana/$PROJECT.git"
-TARGET="$HOME/.dotFiles"
+REPO="marana@git.kuzcotopia.io:marana/${PROJECT}.git"
+TARGET="${HOME}/.dotFiles"
 
 # Function to show help information
 show_help() {
-  echo "Usage: $BIN_NAME <command>"
+  echo "Usage: ${BIN_NAME} <command> [branch]"
   echo
   echo "Commands:"
   echo "   install                    Set up .dotFiles from scratch"
-  echo "   refresh                    Remove and reinstall .dotFiles"
+  echo "   install [branch]           Specify a branch to install or refresh (default: main)"
+  echo "   refresh [--hard]           Refresh .dotFiles: use git pull or a hard reset (if --hard is provided)"
+  echo
+  echo "Options:"
+  echo "   branch                      Specify a branch to install or refresh (default: main)"
+  echo
+  echo "Refreshing to a specific branch:"
+  echo "If you want to refresh (pull the latest changes) from a specific branch, you can pass the branch name as the first argument after refresh. The script will use this branch for the pull operation."
+  echo "./script_name refresh <branch_name>"
+  echo
+  echo "Hard reset to a specific branch:"
+  echo "If you want to perform a hard reset to a specific branch (which deletes the current .dotFiles directory and reclones the specified branch), you can pass --hard followed by the branch name."
+  echo "./script_name refresh --hard <branch_name>"
 }
 
 # Function to check the OS type
@@ -28,32 +41,28 @@ install_homebrew() {
 	  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 	  echo "Adding Homebrew environment variables to Bash and ZSH..."
-	  # Add Homebrew environment variables to .bashrc
 	  if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.bashrc"; then
 		echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.bashrc"
 	  fi
 
-	  # Add Homebrew environment variables to .zshrc
 	  if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
 		echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.zshrc"
 	  fi
 
-	  # Execute brew shellenv for the current Bash session
 	  eval "$(/opt/homebrew/bin/brew shellenv)"
-
-	  echo "Homebrew installation complete and environment variables set."
+	  log INFO "Homebrew installation complete and environment variables set."
 	else
-	  echo "Homebrew is already installed."
+	  log WARN "Homebrew is already installed."
 	fi
   else
-	echo "Skipping Homebrew installation: not on macOS."
+	log ERROR "Skipping Homebrew installation: not on macOS."
   fi
 }
 
 # Function to install ZSH
 install_zsh() {
   if command -v zsh &>/dev/null; then
-	touch ~/.zshrc
+	touch "${HOME}/.zshrc"
 	echo "ZSH is already installed."
   else
 	echo "Installing ZSH..."
@@ -62,7 +71,7 @@ install_zsh() {
 	else
 	  sudo apt update
 	  sudo apt install -y zsh
-	  touch ~/.zshrc
+	  touch "${HOME}/.zshrc"
 	fi
 	echo "ZSH installation complete."
   fi
@@ -71,24 +80,17 @@ install_zsh() {
 # Function to set up dotFiles
 install_dotfiles() {
   echo "Setting up .dotFiles..."
-
-  # Install Homebrew (if applicable)
   install_homebrew
-
-  # Install ZSH
   install_zsh
-
-  # Generate SSH Key and install into Git repos
   "${HOME}/.bootstrap/GitHarness.sh"
-
   echo "Cloning dotFiles..."
-  git clone "${REPO}" "${TARGET}"
 
-  echo "Moving to the dotFiles directory..."
+  # Use default branch or provided branch
+  BRANCH=${BRANCH:-"main"}
+
+  git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"
+
   cd "${TARGET}" || exit 1
-  pwd
-
-  # Source bashrc to ensure Homebrew variables are available
   if [[ -f "${HOME}/.bashrc" ]]; then
 	source "${HOME}/.bashrc"
   fi
@@ -97,17 +99,27 @@ install_dotfiles() {
   exec zsh
 }
 
-# Function to refresh dotFiles
+# Function to refresh dotFiles (normal or hard reset)
 refresh_dotfiles() {
   echo "Refreshing .dotFiles..."
-  rm -rf "${TARGET}"
-  git clone "${REPO}" "${TARGET}"
+
+  BRANCH=${BRANCH:-"main"}
+
+  if [[ "$1" == "--hard" ]]; then
+	echo "Performing a hard reset..."
+	rm -rf "${TARGET}"
+	git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"
+  else
+	echo "Pulling the latest updates..."
+	cd "${TARGET}" || exit 1
+	git pull origin "${BRANCH}"
+  fi
 
   cd "${TARGET}" || exit 1
 }
 
 # Command handler
-case $COMMAND in
+case ${COMMAND} in
   "" | "-h" | "--help")
 	show_help
 	;;
@@ -115,10 +127,10 @@ case $COMMAND in
 	install_dotfiles
 	;;
   refresh)
-	refresh_dotfiles
+	refresh_dotfiles "$2"
 	;;
   *)
-	echo "Unknown command: $COMMAND" >&2
+	echo "Unknown command: ${COMMAND}" >&2
 	show_help
 	exit 1
 	;;
