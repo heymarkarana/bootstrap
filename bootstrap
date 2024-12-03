@@ -50,12 +50,12 @@ install_homebrew() {
 	  fi
 
 	  eval "$(/opt/homebrew/bin/brew shellenv)"
-	  log INFO "Homebrew installation complete and environment variables set."
+	  echo "Homebrew installation complete and environment variables set."
 	else
-	  log WARN "Homebrew is already installed."
+	  echo "Homebrew is already installed."
 	fi
   else
-	log ERROR "Skipping Homebrew installation: not on macOS."
+	echo "Skipping Homebrew installation: not on macOS."
   fi
 }
 
