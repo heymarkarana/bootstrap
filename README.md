@@ -14,6 +14,10 @@ $HOME/.bootstrap/bootstrap install
 ```
 git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install
 ```
+**Beta Branch
+```
+git clone -b 2.1.0 http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install
+```
 
 **Commands:**<BR>
 **install** - Fresh install of .dotfiles<BR>
