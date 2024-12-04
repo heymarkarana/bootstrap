@@ -53,18 +53,15 @@ display_and_copy_ssh_key() {
   esac
 }
 
-# Function to open a URL in the default browser
+# Function to open a URL in the default browser and handle failure
 open_url() {
   local url=$1
-  if ! command -v xdg-open &> /dev/null && ! command -v open &> /dev/null; then
-    echo "Browser open command not found. Please manually visit: $url"
-    return
-  fi
-
   if command -v xdg-open &> /dev/null; then
-    xdg-open "$url"
+    xdg-open "$url" || return 1
   elif command -v open &> /dev/null; then
-    open "$url"
+    open "$url" || return 1
+  else
+    return 1
   fi
 }
 
@@ -80,12 +77,21 @@ echo "  2) GitLab"
 echo "  3) Kuzcotopia GIT"
 read -p "Enter your choice (1/2/3): " choice
 
+url=""
 case "$choice" in
-  1) open_url "https://github.com/settings/keys" ;;
-  2) open_url "https://gitlab.com/profile/keys" ;;
-  3) open_url "http://git.kuzcotopia.io:3000/user/settings/keys" ;;
+  1) url="https://github.com/settings/keys" ;;
+  2) url="https://gitlab.com/profile/keys" ;;
+  3) url="http://git.kuzcotopia.io:3000/user/settings/keys" ;;
   *) echo "Invalid choice. Please manually add your SSH key to the appropriate service." ;;
 esac
+
+# Attempt to open the URL
+if [ -n "$url" ]; then
+  if ! open_url "$url"; then
+    echo "Please manually visit the link above to add your SSH key."
+    read -p "Once done, press Enter to continue... "
+  fi
+fi
 
 echo
 echo "Finished processing SSH key setup."
