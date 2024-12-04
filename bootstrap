@@ -28,6 +28,33 @@ show_help() {
   echo "./script_name refresh --hard <branch_name>"
 }
 
+# Function to switch shell
+switch_to_zsh() {
+    local current_shell
+    current_shell=$(getent passwd "$USER" | cut -d: -f7)
+    local zsh_path
+    zsh_path=$(command -v zsh)
+
+    if [[ "${current_shell}" != "${zsh_path}" ]]; then
+        echo "Changing default shell to ZSH..."
+        if chsh -s "${zsh_path}"; then
+            echo "Default shell changed to ZSH."
+            echo "Please log out and back in for the change to take effect."
+            echo "Or run 'zsh' manually to switch to ZSH for this session."
+
+            # Optionally offer to switch for current session
+            read -r -p "Would you like to switch to ZSH for this session? [y/N] " response
+            if [[ "${response}" =~ ^[Yy]$ ]]; then
+                exec "${zsh_path}" -l
+            fi
+        else
+            echo "Failed to change default shell. You can manually run: chsh -s $(command -v zsh)"
+        fi
+    else
+        echo "ZSH is already your default shell."
+    fi
+}
+
 # Function to install Homebrew on macOS
 install_homebrew() {
   if [[ "$(uname)" == "Darwin" ]]; then
@@ -85,29 +112,36 @@ install_dotfiles() {
 
   git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"
 
-  echo "DotFiles setup complete. Switching to ZSH..."
-  exec zsh
+  echo "DotFiles setup complete."
+  switch_to_zsh
 }
 
 # Function to refresh dotFiles (normal or hard reset)
 refresh_dotfiles() {
   echo "Refreshing .dotFiles..."
+  local branch="${1:-main}"
 
-  BRANCH=${BRANCH:-"main"}
-
-  if [[ "$1" == "--hard" ]]; then
-	echo "Performing a hard reset..."
-	rm -rf "${TARGET}"
-	git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"
+  if [[ "${branch}" == "--hard" ]]; then
+    branch="${2:-main}"
+    echo "Performing a hard reset to branch ${branch}..."
+    rm -rf "${TARGET}"
+    if ! git clone --branch "${branch}" "${REPO}" "${TARGET}"; then
+      echo "Failed to clone the repository. Exiting."
+      exit 1
+    fi
   else
-	echo "Pulling the latest updates..."
-	cd "${TARGET}" || exit 1
-	git pull origin "${BRANCH}"
+    echo "Pulling the latest updates from branch ${branch}..."
+    if [[ ! -d "${TARGET}" ]]; then
+      echo "Target directory does not exist. Exiting."
+      exit 1
+    fi
+    cd "${TARGET}" || exit 1
+    if ! git pull origin "${branch}"; then
+      echo "Failed to pull updates. Exiting."
+      exit 1
+    fi
   fi
-
-  cd "${TARGET}" || exit 1
 }
-
 # Command handler
 case ${COMMAND} in
   "" | "-h" | "--help")
