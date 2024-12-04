@@ -99,23 +99,46 @@ install_zsh() {
   fi
 }
 
-# Function to set up dotFiles
+# Function to set up dotFiles with retry logic for git clone
 install_dotfiles() {
   echo "Setting up .dotFiles..."
   install_homebrew
   install_zsh
-  "${HOME}/.bootstrap/GitHarness.sh"
+
+  # Ensure the bootstrap script exists and is executable
+  if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
+    "${HOME}/.bootstrap/GitHarness.sh"
+  else
+    echo "Bootstrap script not found or not executable. Exiting."
+    exit 1
+  fi
+
   echo "Cloning dotFiles..."
 
   # Use default branch or provided branch
   BRANCH=${BRANCH:-"main"}
 
-  git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"
-
-  echo "DotFiles setup complete."
-  switch_to_zsh
+  # Retry logic for git clone
+  local attempts=0
+  local max_attempts=3
+  while (( attempts < max_attempts )); do
+    if git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"; then
+      echo "DotFiles setup complete."
+      switch_to_zsh
+      return 0  # Exit function successfully
+    else
+      attempts=$((attempts + 1))
+      echo "Git clone failed. Attempt ${attempts} of ${max_attempts}."
+      if (( attempts < max_attempts )); then
+        echo "Please fix the access issue and press Enter to try again, or Ctrl+C to exit."
+        read -r
+      else
+        echo "Maximum attempts reached. Exiting script."
+        exit 1
+      fi
+    fi
+  done
 }
-
 # Function to refresh dotFiles (normal or hard reset)
 refresh_dotfiles() {
   echo "Refreshing .dotFiles..."
