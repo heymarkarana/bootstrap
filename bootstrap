@@ -28,52 +28,47 @@ show_help() {
   echo "./script_name refresh --hard <branch_name>"
 }
 
-# Function to check the OS type
-is_macos() {
-  [[ "$(uname)" == "Darwin" ]]
-}
-
 # Function to install Homebrew on macOS
 install_homebrew() {
-  if is_macos; then
-	if ! command -v brew &>/dev/null; then
-	  echo "Installing Homebrew..."
-	  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    if ! command -v brew &>/dev/null; then
+      echo "Installing Homebrew..."
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-	  echo "Adding Homebrew environment variables to Bash and ZSH..."
-	  if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.bashrc"; then
-		echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.bashrc"
-	  fi
+      echo "Adding Homebrew environment variables to Bash and ZSH..."
+      if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.bashrc"; then
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.bashrc"
+      fi
 
-	  if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
-		echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.zshrc"
-	  fi
+      if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.zshrc"
+      fi
 
-	  eval "$(/opt/homebrew/bin/brew shellenv)"
-	  echo "Homebrew installation complete and environment variables set."
-	else
-	  echo "Homebrew is already installed."
-	fi
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      echo "Homebrew installation complete and environment variables set."
+    else
+      echo "Homebrew is already installed."
+    fi
   else
-	echo "Skipping Homebrew installation: not on macOS."
+    echo "Skipping Homebrew installation: not on macOS."
   fi
 }
 
 # Function to install ZSH
 install_zsh() {
   if command -v zsh &>/dev/null; then
-	touch "${HOME}/.zshrc"
-	echo "ZSH is already installed."
+    touch "${HOME}/.zshrc"
+    echo "ZSH is already installed."
   else
-	echo "Installing ZSH..."
-	if is_macos; then
-	  brew install zsh
-	else
-	  sudo apt update
-	  sudo apt install -y zsh
-	  touch "${HOME}/.zshrc"
-	fi
-	echo "ZSH installation complete."
+    echo "Installing ZSH..."
+    if [[ "$(uname)" == "Darwin" ]]; then
+      brew install zsh
+    else
+      sudo apt update -q
+      sudo apt install -y zsh
+    fi
+    touch "${HOME}/.zshrc"
+    echo "ZSH installation complete."
   fi
 }
 
@@ -89,11 +84,6 @@ install_dotfiles() {
   BRANCH=${BRANCH:-"main"}
 
   git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"
-
-  cd "${TARGET}" || exit 1
-  if [[ -f "${HOME}/.bashrc" ]]; then
-	source "${HOME}/.bashrc"
-  fi
 
   echo "DotFiles setup complete. Switching to ZSH..."
   exec zsh
