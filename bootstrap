@@ -125,7 +125,11 @@ install_dotfiles() {
     if git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"; then
       echo "DotFiles setup complete."
       switch_to_zsh
+
+      # Change directory to .dotFiles
+      cd "${TARGET}" || exit 1
       return 0  # Exit function successfully
+
     else
       attempts=$((attempts + 1))
       echo "Git clone failed. Attempt ${attempts} of ${max_attempts}."
