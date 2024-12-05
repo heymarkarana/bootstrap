@@ -116,7 +116,7 @@ install_dotfiles() {
   echo "Cloning dotFiles..."
 
   # Use default branch or provided branch
-  BRANCH=${BRANCH:-"main"}
+  BRANCH=${BRANCH:-"master"}
 
   # Retry logic for git clone
   local attempts=0
