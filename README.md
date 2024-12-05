@@ -16,7 +16,7 @@ git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap &&
 ```
 **Beta Branch**
 ```
-git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install
+git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install 2.1.0
 ```
 
 **Commands:**<BR>
