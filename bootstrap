@@ -4,55 +4,84 @@ BIN_NAME=$(basename "$0")
 COMMAND=$1 # Command entered - install or refresh
 BRANCH=$2  # The branch name or commit reference can be passed as the second argument
 PROJECT="dotFiles"
-REPO="marana@git.kuzcotopia.io:marana/${PROJECT}.git"
+REPO1="marana@git.kuzcotopia.io:marana/${PROJECT}.git"
+REPO1_NAME="Kuzcotopia"
+REPO2="marana@git.kuzcotopia.io:marana/${PROJECT}.git"
+REPO2_NAME="GitHub"
+DEFAULT_REPO="${REPO1}" # Default repository
+SELECTED_REPO="${DEFAULT_REPO}"
 TARGET="${HOME}/.dotFiles"
 
 # Function to show help information
 show_help() {
-  echo "Usage: ${BIN_NAME} <command> [branch]"
+  echo
+  echo
+  echo "Usage: ${BIN_NAME} <command> [branch] [--repo <repository>]"
   echo
   echo "Commands:"
   echo "   install                    Set up .dotFiles from scratch"
-  echo "   install [branch]           Specify a branch to install or refresh (default: main)"
-  echo "   refresh [--hard]           Refresh .dotFiles: use git pull or a hard reset (if --hard is provided)"
+  echo "   install [branch]           Specify a branch to install or refresh"
+  echo "                              (default: main)"
+  echo "   refresh [--hard]           Refresh .dotFiles: use git pull or a hard reset "
+  echo "                              (if --hard is provided)"
   echo
   echo "Options:"
-  echo "   branch                      Specify a branch to install or refresh (default: main)"
+  echo "   --repo <repository>         Specify the repository to clone from "
+  echo "                               (default: ${DEFAULT_REPO})"
   echo
-  echo "Refreshing to a specific branch:"
-  echo "If you want to refresh (pull the latest changes) from a specific branch, you can pass the branch name as the first argument after refresh. The script will use this branch for the pull operation."
-  echo "./script_name refresh <branch_name>"
+  echo -e "\033[1;4mRefreshing to a specific branch:\033[0m"
+  echo "If you want to refresh (pull the latest changes) from a specific branch, "
+  echo "you can pass the branch name as the first argument after refresh. The script "
+  echo "will use this branch for the pull operation."
+  echo -e "\033[0;32m./script_name refresh <branch_name>\033[0m"  echo
   echo
-  echo "Hard reset to a specific branch:"
-  echo "If you want to perform a hard reset to a specific branch (which deletes the current .dotFiles directory and reclones the specified branch), you can pass --hard followed by the branch name."
-  echo "./script_name refresh --hard <branch_name>"
+  echo -e "\033[1;4mHard reset to a specific branch:\033[0m"
+  echo "If you want to perform a hard reset to a specific branch (which deletes the "
+  echo "current .dotFiles directory and reclones the specified branch), you can pass "
+  echo "--hard followed by the branch name."
+  echo -e "\033[0;32m./script_name refresh --hard <branch_name>\033[0m"}
+  echo
+  echo
+
+# Parse additional arguments
+parse_arguments() {
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --repo)
+        SELECTED_REPO=$2
+        shift # Consume argument value
+        ;;
+      *)
+        ;;
+    esac
+    shift
+  done
 }
 
 # Function to switch shell
 switch_to_zsh() {
-    local current_shell
-    current_shell=$(getent passwd "$USER" | cut -d: -f7)
-    local zsh_path
-    zsh_path=$(command -v zsh)
+  local current_shell
+  current_shell=$(getent passwd "$USER" | cut -d: -f7)
+  local zsh_path
+  zsh_path=$(command -v zsh)
 
-    if [[ "${current_shell}" != "${zsh_path}" ]]; then
-        echo "Changing default shell to ZSH..."
-        if chsh -s "${zsh_path}"; then
-            echo "Default shell changed to ZSH."
-            echo "Please log out and back in for the change to take effect."
-            echo "Or run 'zsh' manually to switch to ZSH for this session."
+  if [[ "${current_shell}" != "${zsh_path}" ]]; then
+    echo "Changing default shell to ZSH..."
+    if chsh -s "${zsh_path}"; then
+      echo "Default shell changed to ZSH."
+      echo "Please log out and back in for the change to take effect."
+      echo "Or run 'zsh' manually to switch to ZSH for this session."
 
-            # Optionally offer to switch for current session
-            read -r -p "Would you like to switch to ZSH for this session? [y/N] " response
-            if [[ "${response}" =~ ^[Yy]$ ]]; then
-                exec "${zsh_path}" -l
-            fi
-        else
-            echo "Failed to change default shell. You can manually run: chsh -s $(command -v zsh)"
-        fi
+      read -r -p "Would you like to switch to ZSH for this session? [y/N] " response
+      if [[ "${response}" =~ ^[Yy]$ ]]; then
+        exec "${zsh_path}" -l
+      fi
     else
-        echo "ZSH is already your default shell."
+      echo "Failed to change default shell. You can manually run: chsh -s $(command -v zsh)"
     fi
+  else
+    echo "ZSH is already your default shell."
+  fi
 }
 
 # Function to install Homebrew on macOS
@@ -62,17 +91,12 @@ install_homebrew() {
       echo "Installing Homebrew..."
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-      echo "Adding Homebrew environment variables to Bash and ZSH..."
-      if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.bashrc"; then
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.bashrc"
-      fi
-
       if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.zshrc"
       fi
 
       eval "$(/opt/homebrew/bin/brew shellenv)"
-      echo "Homebrew installation complete and environment variables set."
+      echo "Homebrew installation complete."
     else
       echo "Homebrew is already installed."
     fi
@@ -88,58 +112,32 @@ install_zsh() {
     echo "ZSH is already installed."
   else
     echo "Installing ZSH..."
-    if [[ "$(uname)" == "Darwin" ]]; then
-      brew install zsh
-    else
-      sudo apt update -q
-      sudo apt install -y zsh
-    fi
+    sudo apt update -q && sudo apt install -y zsh
     touch "${HOME}/.zshrc"
     echo "ZSH installation complete."
   fi
 }
 
-# Function to set up dotFiles with retry logic for git clone
+# Function to set up dotFiles
 install_dotfiles() {
   echo "Setting up .dotFiles..."
   install_homebrew
   install_zsh
 
-  # Ensure the bootstrap script exists and is executable
-  if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
-    "${HOME}/.bootstrap/GitHarness.sh"
+  BRANCH=${BRANCH:-"main"}
+
+  echo "Cloning dotFiles from ${SELECTED_REPO}..."
+  if git clone --branch "${BRANCH}" "${SELECTED_REPO}" "${TARGET}"; then
+    echo "dotFiles download complete."
+    cd "${TARGET}"
+    switch_to_zsh
   else
-    echo "Bootstrap script not found or not executable. Exiting."
+    echo "Git clone failed. Exiting."
     exit 1
   fi
-
-  echo "Cloning dotFiles..."
-
-  # Use default branch or provided branch
-  BRANCH=${BRANCH:-"master"}
-
-  # Retry logic for git clone
-  local attempts=0
-  local max_attempts=3
-  while (( attempts < max_attempts )); do
-    if git clone --branch "${BRANCH}" "${REPO}" "${TARGET}"; then
-      echo "DotFiles setup complete."
-      cd "${TARGET}"
-      switch_to_zsh
-    else
-      attempts=$((attempts + 1))
-      echo "Git clone failed. Attempt ${attempts} of ${max_attempts}."
-      if (( attempts < max_attempts )); then
-        echo "Please fix the access issue and press Enter to try again, or Ctrl+C to exit."
-        read -r
-      else
-        echo "Maximum attempts reached. Exiting script."
-        exit 1
-      fi
-    fi
-  done
 }
-# Function to refresh dotFiles (normal or hard reset)
+
+# Function to refresh dotFiles
 refresh_dotfiles() {
   echo "Refreshing .dotFiles..."
   local branch="${1:-main}"
@@ -148,37 +146,35 @@ refresh_dotfiles() {
     branch="${2:-main}"
     echo "Performing a hard reset to branch ${branch}..."
     rm -rf "${TARGET}"
-    if ! git clone --branch "${branch}" "${REPO}" "${TARGET}"; then
-      echo "Failed to clone the repository. Exiting."
+    git clone --branch "${branch}" "${SELECTED_REPO}" "${TARGET}" || {
+      echo "Failed to clone repository. Exiting."
       exit 1
-    fi
+    }
   else
-    echo "Pulling the latest updates from branch ${branch}..."
-    if [[ ! -d "${TARGET}" ]]; then
-      echo "Target directory does not exist. Exiting."
-      exit 1
-    fi
+    echo "Pulling latest updates from branch ${branch}..."
     cd "${TARGET}" || exit 1
-    if ! git pull origin "${branch}"; then
+    git pull origin "${branch}" || {
       echo "Failed to pull updates. Exiting."
       exit 1
-    fi
+    }
   fi
 }
-# Command handler
+
+# Main script logic
+parse_arguments "$@"
 case ${COMMAND} in
   "" | "-h" | "--help")
-	show_help
-	;;
+    show_help
+    ;;
   install)
-	install_dotfiles
-	;;
+    install_dotfiles
+    ;;
   refresh)
-	refresh_dotfiles "$2"
-	;;
+    refresh_dotfiles "$2"
+    ;;
   *)
-	echo "Unknown command: ${COMMAND}" >&2
-	show_help
-	exit 1
-	;;
+    echo "Unknown command: ${COMMAND}" >&2
+    show_help
+    exit 1
+    ;;
 esac
