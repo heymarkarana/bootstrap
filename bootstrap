@@ -39,10 +39,10 @@ show_help() {
   echo "If you want to perform a hard reset to a specific branch (which deletes the "
   echo "current .dotFiles directory and reclones the specified branch), you can pass "
   echo "--hard followed by the branch name."
-  echo -e "\033[0;32m./script_name refresh --hard <branch_name>\033[0m"}
+  echo -e "\033[0;32m./script_name refresh --hard <branch_name>\033[0m"
   echo
   echo
-
+}
 # Parse additional arguments
 parse_arguments() {
   while [[ $# -gt 0 ]]; do
