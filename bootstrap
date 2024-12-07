@@ -124,7 +124,7 @@ install_dotfiles() {
   install_homebrew
   install_zsh
 
-  BRANCH=${BRANCH:-"main"}
+  BRANCH=${BRANCH:-"master"}
 
   echo "Cloning dotFiles from ${SELECTED_REPO}..."
   if git clone --branch "${BRANCH}" "${SELECTED_REPO}" "${TARGET}"; then
