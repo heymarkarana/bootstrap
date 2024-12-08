@@ -4,7 +4,7 @@ BIN_NAME=$(basename "$0")
 COMMAND=$1 # Command entered - install or refresh
 BRANCH=$2  # The branch name or commit reference can be passed as the second argument
 PROJECT="dotFiles"
-REPO1="marana@git.kuzcotopia.io:marana/${PROJECT}.git"
+REPO1="git@git.kuzcotopia.io:marana/${PROJECT}.git"
 REPO1_NAME="Kuzcotopia"
 REPO2="git@github.com:heymarkarana/${PROJECT}.git"
 REPO2_NAME="GitHub"
@@ -15,32 +15,65 @@ TARGET="${HOME}/.dotFiles"
 # Function to show help information
 show_help() {
   echo
-  echo
-  echo "Usage: ${BIN_NAME} <command> [branch] [--repo <repository>]"
+  echo "Usage: ${BIN_NAME} <command> [branch|tag] [options]"
   echo
   echo "Commands:"
-  echo "   install                    Set up .dotFiles from scratch"
-  echo "   install [branch]           Specify a branch to install or refresh"
-  echo "                              (default: main)"
-  echo "   refresh [--hard]           Refresh .dotFiles: use git pull or a hard reset "
-  echo "                              (if --hard is provided)"
+  echo "   install                    Set up .dotFiles from scratch. Installs ZSH and Homebrew if required."
+  echo "   install [branch|tag]       Specify a branch or tag to install. Defaults to 'main'."
+  echo
+  echo "   refresh                    Refresh the existing .dotFiles repository. Defaults to pulling the 'main' branch."
+  echo "   refresh <branch|tag>       Refresh and pull a specific branch or tag."
+  echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes and reclones the .dotFiles repository."
   echo
   echo "Options:"
-  echo "   --repo <repository>         Specify the repository to clone from "
-  echo "                               (default: ${DEFAULT_REPO})"
+  echo "   --repo <repository>        Specify the repository to clone from. Defaults to:"
+  echo "                               - ${REPO1_NAME}: ${REPO1}"
+  echo "                               - ${REPO2_NAME}: ${REPO2}"
   echo
-  echo -e "\033[1;4mRefreshing to a specific branch:\033[0m"
-  echo "If you want to refresh (pull the latest changes) from a specific branch, "
-  echo "you can pass the branch name as the first argument after refresh. The script "
-  echo "will use this branch for the pull operation."
-  echo -e "\033[0;32m./script_name refresh <branch_name>\033[0m"  echo
+  echo "Examples:"
   echo
-  echo -e "\033[1;4mHard reset to a specific branch:\033[0m"
-  echo "If you want to perform a hard reset to a specific branch (which deletes the "
-  echo "current .dotFiles directory and reclones the specified branch), you can pass "
-  echo "--hard followed by the branch name."
-  echo -e "\033[0;32m./script_name refresh --hard <branch_name>\033[0m"
+  echo "   Install Examples:"
+  echo "     1. Install from the default (main) branch:"
+  echo "        ./$(basename "$0") install"
   echo
+  echo "     2. Install from a specific branch:"
+  echo "        ./$(basename "$0") install develop"
+  echo
+  echo "     3. Install from a specific tag:"
+  echo "        ./$(basename "$0") install v2.1.2"
+  echo
+  echo "     4. Install from a specific repository:"
+  echo "        ./$(basename "$0") install --repo git@github.com:heymarkarana/dotFiles.git"
+  echo
+  echo "   Refresh Examples:"
+  echo "     1. Refresh the current branch (default: main):"
+  echo "        ./$(basename "$0") refresh"
+  echo
+  echo "     2. Refresh a specific branch:"
+  echo "        ./$(basename "$0") refresh feature/my-update"
+  echo
+  echo "     3. Refresh to a specific tag:"
+  echo "        ./$(basename "$0") refresh v2.1.2"
+  echo
+  echo "     4. Perform a hard reset to the main branch:"
+  echo "        ./$(basename "$0") refresh --hard main"
+  echo
+  echo "     5. Perform a hard reset to a specific tag:"
+  echo "        ./$(basename "$0") refresh --hard v2.1.2"
+  echo
+  echo "   Using Custom Repository:"
+  echo "     1. Install from a custom repository:"
+  echo "        ./$(basename "$0") install --repo git@github.com:heymarkarana/dotFiles.git"
+  echo
+  echo "     2. Refresh a specific branch from a custom repository:"
+  echo "        ./$(basename "$0") refresh feature/experimental --repo git@github.com:heymarkarana/dotFiles.git"
+  echo
+  echo "     3. Perform a hard reset to a tag from a custom repository:"
+  echo "        ./$(basename "$0") refresh --hard v2.1.2 --repo git@github.com:heymarkarana/dotFiles.git"
+  echo
+  echo "Notes:"
+  echo "   - Tags are immutable snapshots. If you check out a tag, a new branch will be created for further changes."
+  echo "   - If '--repo' is not specified, the default repository (${DEFAULT_REPO}) will be used."
   echo
 }
 # Parse additional arguments
@@ -124,12 +157,21 @@ install_dotfiles() {
   install_homebrew
   install_zsh
 
-  BRANCH=${BRANCH:-"main"}
+  # Branch or tag to use (default: main)
+  local branch_or_tag="${BRANCH:-main}"
 
   echo "Cloning dotFiles from ${SELECTED_REPO}..."
-  if git clone --branch "${BRANCH}" "${SELECTED_REPO}" "${TARGET}"; then
-    echo "dotFiles download complete."
-    cd "${TARGET}"
+  if git clone "${SELECTED_REPO}" "${TARGET}"; then
+    cd "${TARGET}" || exit 1
+    # Checkout branch or tag
+    if git rev-parse --verify "refs/tags/${branch_or_tag}" >/dev/null 2>&1; then
+      echo "Checking out tag ${branch_or_tag}..."
+      git checkout "tags/${branch_or_tag}" -b "${branch_or_tag}-branch"
+    else
+      echo "Checking out branch ${branch_or_tag}..."
+      git checkout "${branch_or_tag}"
+    fi
+    echo "dotFiles setup complete."
     switch_to_zsh
   else
     echo "Git clone failed. Exiting."
@@ -140,23 +182,37 @@ install_dotfiles() {
 # Function to refresh dotFiles
 refresh_dotfiles() {
   echo "Refreshing .dotFiles..."
-  local branch="${1:-main}"
+  local branch_or_tag="${1:-main}"
 
-  if [[ "${branch}" == "--hard" ]]; then
-    branch="${2:-main}"
-    echo "Performing a hard reset to branch ${branch}..."
+  if [[ "${branch_or_tag}" == "--hard" ]]; then
+    branch_or_tag="${2:-main}"
+    echo "Performing a hard reset to ${branch_or_tag}..."
     rm -rf "${TARGET}"
-    git clone --branch "${branch}" "${SELECTED_REPO}" "${TARGET}" || {
+    git clone "${SELECTED_REPO}" "${TARGET}" || {
       echo "Failed to clone repository. Exiting."
       exit 1
     }
-  else
-    echo "Pulling latest updates from branch ${branch}..."
     cd "${TARGET}" || exit 1
-    git pull origin "${branch}" || {
-      echo "Failed to pull updates. Exiting."
-      exit 1
-    }
+    if git rev-parse --verify "refs/tags/${branch_or_tag}" >/dev/null 2>&1; then
+      echo "Checking out tag ${branch_or_tag}..."
+      git checkout "tags/${branch_or_tag}" -b "${branch_or_tag}-branch"
+    else
+      echo "Checking out branch ${branch_or_tag}..."
+      git checkout "${branch_or_tag}"
+    fi
+  else
+    cd "${TARGET}" || exit 1
+    if git rev-parse --verify "refs/tags/${branch_or_tag}" >/dev/null 2>&1; then
+      echo "Fetching and checking out tag ${branch_or_tag}..."
+      git fetch --tags
+      git checkout "tags/${branch_or_tag}" -b "${branch_or_tag}-branch"
+    else
+      echo "Pulling latest updates from branch ${branch_or_tag}..."
+      git pull origin "${branch_or_tag}" || {
+        echo "Failed to pull updates. Exiting."
+        exit 1
+      }
+    fi
   fi
 }
 
