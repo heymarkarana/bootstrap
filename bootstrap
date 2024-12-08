@@ -167,12 +167,12 @@ case ${COMMAND} in
     show_help
     ;;
   install)
-    install_dotfiles
-
     # Ensure the bootstrap script exists and is executable
     if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
       "${HOME}/.bootstrap/GitHarness.sh"
     fi
+    install_dotfiles
+
     ;;
   refresh)
     refresh_dotfiles "$2"
