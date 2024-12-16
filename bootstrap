@@ -91,30 +91,47 @@ parse_arguments() {
   done
 }
 
-# Function to switch shell
 switch_to_zsh() {
-  local current_shell
-  current_shell=$(getent passwd "$USER" | cut -d: -f7)
-  local zsh_path
+  local current_shell zsh_path
+
+  # Determine the current shell
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS: get current shell
+    current_shell=$(dscl . -read /Users/"$USER" UserShell | awk '{print $2}')
+  else
+    # Linux: get current shell
+    if command -v getent >/dev/null 2>&1; then
+      current_shell=$(getent passwd "$USER" | cut -d: -f7)
+    else
+      current_shell=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+    fi
+  fi
+
+  # Determine the path to zsh
   zsh_path=$(command -v zsh)
 
-  if [[ "${current_shell}" != "${zsh_path}" ]]; then
-    echo "Changing default shell to ZSH..."
-    if chsh -s "${zsh_path}"; then
-      echo "Default shell changed to ZSH."
-      echo "Please log out and back in for the change to take effect."
-      echo "Or run 'zsh' manually to switch to ZSH for this session."
-
-      read -r -p "Would you like to switch to ZSH for this session? [y/N] " response
-      if [[ "${response}" =~ ^[Yy]$ ]]; then
-        exec "${zsh_path}" -l
-      fi
-    else
-      echo "Failed to change default shell. You can manually run: chsh -s $(command -v zsh)"
-    fi
-  else
-    echo "ZSH is already your default shell."
+  # Check if zsh is already the current shell
+  if [[ "$current_shell" == "$zsh_path" ]]; then
+    echo "zsh is already the default shell."
+    echo "Switching to zsh for the current session..."
+    exec "$zsh_path"
+    return 0
   fi
+
+  # Change the default shell only on Linux
+  if [[ "$OSTYPE" != "darwin"* ]]; then
+    echo "Changing default shell to zsh..."
+    chsh -s "$zsh_path"
+    if [[ $? -ne 0 ]]; then
+      echo "Failed to change the default shell. Please check your permissions."
+      return 1
+    fi
+    echo "Default shell successfully changed to zsh."
+  fi
+
+  # Switch to zsh in the current session
+  echo "Switching to zsh for the current session..."
+  exec "$zsh_path"
 }
 
 # Function to install Homebrew on macOS
