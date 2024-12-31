@@ -202,7 +202,6 @@ install_zsh() {
 # Function to set up dotFiles
 install_dotfiles() {
   echo "Setting up .dotFiles..."
-  introduction
   install_homebrew
   install_zsh
 
@@ -277,6 +276,7 @@ install)
     "${HOME}/.bootstrap/GitHarness.sh"
   fi
   install_dotfiles
+  introduction
 
   ;;
 refresh)
