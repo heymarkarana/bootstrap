@@ -76,16 +76,47 @@ show_help() {
   echo "   - If '--repo' is not specified, the default repository (${DEFAULT_REPO}) will be used."
   echo
 }
+
+introduction() {
+
+  echo
+  echo
+  echo " ________________________________________"
+  echo "/ Chuck Norris does not use spell check. \\"
+  echo "| If he happens to misspell a word,      |"
+  echo "\\ Oxford will change the spelling        /"
+  echo " ----------------------------------------"
+  echo "        ^__^"
+  echo "        (oo)\\_______"
+  echo "        (__)\\       )\\/\\"
+  echo "            ||----w |"
+  echo "            ||     ||"
+  echo
+  echo "\033[31m Hold onto your butts...\033[0m"
+  echo
+  echo
+  echo -e " \033[32mdotFiles\033[0m - installation and configuration made easy."
+  echo
+  echo "This will install for both Ubuntu and macOS instances. macOS virtual "
+  echo "machine environts will skip macApp store installation. Profiles may"
+  echo "be setup in the profiles directory."
+  echo
+  echo "Caveat Emptor"
+  echo "        -- Mr. Brady."
+  echo
+  echo
+
+}
+
 # Parse additional arguments
 parse_arguments() {
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --repo)
-        SELECTED_REPO=$2
-        shift # Consume argument value
-        ;;
-      *)
-        ;;
+    --repo)
+      SELECTED_REPO=$2
+      shift # Consume argument value
+      ;;
+    *) ;;
     esac
     shift
   done
@@ -142,7 +173,7 @@ install_homebrew() {
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
       if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${HOME}/.zshrc"
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"${HOME}/.zshrc"
       fi
 
       eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -171,6 +202,7 @@ install_zsh() {
 # Function to set up dotFiles
 install_dotfiles() {
   echo "Setting up .dotFiles..."
+  introduction
   install_homebrew
   install_zsh
 
@@ -236,23 +268,23 @@ refresh_dotfiles() {
 # Main script logic
 parse_arguments "$@"
 case ${COMMAND} in
-  "" | "-h" | "--help")
-    show_help
-    ;;
-  install)
-    # Ensure the bootstrap script exists and is executable
-    if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
-      "${HOME}/.bootstrap/GitHarness.sh"
-    fi
-    install_dotfiles
+"" | "-h" | "--help")
+  show_help
+  ;;
+install)
+  # Ensure the bootstrap script exists and is executable
+  if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
+    "${HOME}/.bootstrap/GitHarness.sh"
+  fi
+  install_dotfiles
 
-    ;;
-  refresh)
-    refresh_dotfiles "$2"
-    ;;
-  *)
-    echo "Unknown command: ${COMMAND}" >&2
-    show_help
-    exit 1
-    ;;
+  ;;
+refresh)
+  refresh_dotfiles "$2"
+  ;;
+*)
+  echo "Unknown command: ${COMMAND}" >&2
+  show_help
+  exit 1
+  ;;
 esac
