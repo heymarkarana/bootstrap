@@ -12,7 +12,7 @@
 # DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 
 DOT_FILES_ENV_FILE="df.env"
-DOT_FILES_ENV_FILE_LOCATION="${HOME}/.config/${DOT_FILES_ENV_FILE}"
+DOT_FILES_ENV_FILE_LOCATION="${HOME}/.config/dotFiles/${DOT_FILES_ENV_FILE}"
 DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles"
 DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 
@@ -32,7 +32,26 @@ TARGET=$(source "${HOME}/.config/df.env" 2>/dev/null && echo "$DOT_FILES_INSTALL
 declare -A DEFAULT_VARIABLES=(
   ["DOT_FILES_INSTALL_DIRECTORY"]="${DOT_FILES_INSTALL_DIRECTORY}"
   ["DOT_FILES_APP_INSTALL_DIRECTORY"]="${DOT_FILES_APP_INSTALL_DIRECTORY}"
+  ["DOT_FILES_PLATFORM"]=""  # Initially empty, will be updated dynamically
 )
+
+# Function to detect platform
+detect_platform() {
+  local platform=""
+
+  # Detect platform
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    platform="macOS"
+  elif [[ -f "/etc/os-release" ]] && grep -qi "ubuntu" /etc/os-release; then
+    platform="Ubuntu"
+  else
+    platform="Unknown"
+  fi
+
+  echo "Detected platform: ${platform}"
+  # Update the platform in DEFAULT_VARIABLES
+  DEFAULT_VARIABLES["DOT_FILES_PLATFORM"]="${platform}"
+}
 
 # Function to write a variable to the env file
 write_variable_to_env() {
@@ -65,6 +84,7 @@ ensure_variables_in_env() {
 
 # Main logic
 initialize_env_file
+detect_platform  # Detect and update the platform
 ensure_variables_in_env
 
 ############################################################################################################
