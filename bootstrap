@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
 
+############################################################################################################
+#
+# Start dotFiles initialization
+#
+############################################################################################################
+
+# This will setup a env file that has the default install directory for dotFiles. Change this manually if you want to install someplace else.
+# This is also mirrored at .dotFiles/Utilities/init.zsh
+# DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles
+# DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
+
+DOT_FILES_ENV_FILE="df.env"
+DOT_FILES_ENV_FILE_LOCATION="${HOME}/.config/${DOT_FILES_ENV_FILE}"
+DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles"
+DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
+
 BIN_NAME=$(basename "$0")
 COMMAND=$1 # Command entered - install or refresh
 BRANCH=$2  # The branch name or commit reference can be passed as the second argument
@@ -10,7 +26,53 @@ REPO2="git@github.com:heymarkarana/${PROJECT}.git"
 REPO2_NAME="GitHub"
 DEFAULT_REPO="${REPO1}" # Default repository
 SELECTED_REPO="${DEFAULT_REPO}"
-TARGET="${HOME}/.dotFiles"
+TARGET=$(source "${HOME}/.config/df.env" 2>/dev/null && echo "$DOT_FILES_INSTALL_DIRECTORY" || echo "${HOME}/.dotFiles")
+
+# Default variables
+declare -A DEFAULT_VARIABLES=(
+  ["DOT_FILES_INSTALL_DIRECTORY"]="${DOT_FILES_INSTALL_DIRECTORY}"
+  ["DOT_FILES_APP_INSTALL_DIRECTORY"]="${DOT_FILES_APP_INSTALL_DIRECTORY}"
+)
+
+# Function to write a variable to the env file
+write_variable_to_env() {
+  local var_name="$1"
+  local var_value="$2"
+
+  # Append the variable if it's missing
+  if ! grep -q "^${var_name}=" "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null; then
+    echo "${var_name}=\"${var_value}\"" | tee -a "${DOT_FILES_ENV_FILE_LOCATION}" >/dev/null
+    echo "Added missing variable: ${var_name}=\"${var_value}\""
+  fi
+}
+
+# Ensure the environment file exists
+initialize_env_file() {
+  if [[ ! -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
+    mkdir -p "$(dirname "${DOT_FILES_ENV_FILE_LOCATION}")"
+    touch "${DOT_FILES_ENV_FILE_LOCATION}"
+    chmod a+rx "${DOT_FILES_ENV_FILE_LOCATION}"
+    echo "Created environment file at ${DOT_FILES_ENV_FILE_LOCATION}"
+  fi
+}
+
+# Ensure all default variables are present in the env file
+ensure_variables_in_env() {
+  for var_name in "${!DEFAULT_VARIABLES[@]}"; do
+    write_variable_to_env "${var_name}" "${DEFAULT_VARIABLES[$var_name]}"
+  done
+}
+
+# Main logic
+initialize_env_file
+ensure_variables_in_env
+
+############################################################################################################
+#
+# End initialization
+#
+############################################################################################################
+
 
 # Function to show help information
 show_help() {
@@ -18,6 +80,8 @@ show_help() {
   echo "Usage: ${BIN_NAME} <command> [branch|tag] [options]"
   echo
   echo "Commands:"
+  echo "   init                       Display the initialization status. Outputs the environment variables defined in the environment file."
+  echo
   echo "   install                    Set up .dotFiles from scratch. Installs ZSH and Homebrew if required."
   echo "   install [branch|tag]       Specify a branch or tag to install. Defaults to 'main'."
   echo
@@ -31,6 +95,10 @@ show_help() {
   echo "                               - ${REPO2_NAME}: ${REPO2}"
   echo
   echo "Examples:"
+  echo
+  echo "   Init Example:"
+  echo "     1. Display environment variables:"
+  echo "        ./$(basename "$0") init"
   echo
   echo "   Install Examples:"
   echo "     1. Install from the default (main) branch:"
@@ -106,6 +174,18 @@ introduction() {
   echo
   echo
 
+}
+
+# New function to handle the "init" command
+init_dotfiles() {
+  echo "Initialization complete. dotFile variables in environment file are:"
+  echo "---------------------------------------------------"
+  if [[ -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
+    cat "${DOT_FILES_ENV_FILE_LOCATION}"
+  else
+    echo "Environment file not found at ${DOT_FILES_ENV_FILE_LOCATION}."
+  fi
+  echo "---------------------------------------------------"
 }
 
 # Parse additional arguments
@@ -270,6 +350,9 @@ case ${COMMAND} in
 "" | "-h" | "--help")
   show_help
   ;;
+init)
+  init_dotfiles
+  ;;
 install)
   # Ensure the bootstrap script exists and is executable
   if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
@@ -277,7 +360,6 @@ install)
   fi
   install_dotfiles
   introduction
-
   ;;
 refresh)
   refresh_dotfiles "$2"
