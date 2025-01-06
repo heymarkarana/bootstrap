@@ -26,7 +26,7 @@ REPO2="git@github.com:heymarkarana/${PROJECT}.git"
 REPO2_NAME="GitHub"
 DEFAULT_REPO="${REPO1}" # Default repository
 SELECTED_REPO="${DEFAULT_REPO}"
-TARGET=$(source "${HOME}/.config/df.env" 2>/dev/null && echo "$DOT_FILES_INSTALL_DIRECTORY" || echo "${HOME}/.dotFiles")
+TARGET=$(source "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null && echo "${DOT_FILES_INSTALL_DIRECTORY}" || echo "${HOME}/.dotFiles")
 
 # Default variables
 declare -A DEFAULT_VARIABLES=(
