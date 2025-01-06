@@ -16,6 +16,82 @@ DOT_FILES_ENV_FILE_LOCATION="${HOME}/.config/dotFiles/${DOT_FILES_ENV_FILE}"
 DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles"
 DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 
+# Function to detect platform
+detect_platform() {
+    local platform=""
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        platform="macOS"
+    elif [[ -f "/etc/lsb-release" ]] && grep -q "Ubuntu" "/etc/lsb-release"; then
+        platform="ubuntu"
+    else
+        echo "Error: Unsupported platform. Only macOS and ubuntu are supported."
+        exit 1
+    fi
+
+    echo "$platform"
+}
+
+# Get the platform
+DOT_FILES_PLATFORM=$(detect_platform)
+
+# Default variables
+declare -a VAR_NAMES=(
+    "DOT_FILES_INSTALL_DIRECTORY"
+    "DOT_FILES_APP_INSTALL_DIRECTORY"
+    "DOT_FILES_PLATFORM"
+)
+
+declare -a VAR_VALUES=(
+    "${DOT_FILES_INSTALL_DIRECTORY}"
+    "${DOT_FILES_APP_INSTALL_DIRECTORY}"
+    "${DOT_FILES_PLATFORM}"
+)
+# Function to write a variable to the env file
+write_variable_to_env() {
+    local var_name="$1"
+    local var_value="$2"
+
+    # Append the variable if it's missing
+    if ! grep -q "^${var_name}=" "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null; then
+        echo "${var_name}=\"${var_value}\"" | tee -a "${DOT_FILES_ENV_FILE_LOCATION}" >/dev/null
+        echo "Added missing variable: ${var_name}=\"${var_value}\""
+    fi
+}
+
+# Ensure the environment file exists
+initialize_env_file() {
+    if [[ ! -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
+        mkdir -p "$(dirname "${DOT_FILES_ENV_FILE_LOCATION}")"
+        touch "${DOT_FILES_ENV_FILE_LOCATION}"
+        chmod a+rx "${DOT_FILES_ENV_FILE_LOCATION}"
+        echo "Created environment file at ${DOT_FILES_ENV_FILE_LOCATION}"
+    fi
+}
+
+# Ensure all default variables are present in the env file
+ensure_variables_in_env() {
+    local i
+    for i in "${!VAR_NAMES[@]}"; do
+        write_variable_to_env "${VAR_NAMES[$i]}" "${VAR_VALUES[$i]}"
+    done
+}
+
+get_target_directory() {
+    if [[ -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
+        # shellcheck disable=SC1090
+        source "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null
+        echo "${DOT_FILES_INSTALL_DIRECTORY}"
+    else
+        echo "${HOME}/.dotFiles"
+    fi
+}
+
+# Main logic
+initialize_env_file
+ensure_variables_in_env
+
+# Define other variables necessary for this script
 BIN_NAME=$(basename "$0")
 COMMAND=$1 # Command entered - install or refresh
 BRANCH=$2  # The branch name or commit reference can be passed as the second argument
@@ -26,66 +102,9 @@ REPO2="git@github.com:heymarkarana/${PROJECT}.git"
 REPO2_NAME="GitHub"
 DEFAULT_REPO="${REPO1}" # Default repository
 SELECTED_REPO="${DEFAULT_REPO}"
-TARGET=$(source "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null && echo "${DOT_FILES_INSTALL_DIRECTORY}" || echo "${HOME}/.dotFiles")
+#TARGET=$(source "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null && echo "${DOT_FILES_INSTALL_DIRECTORY}" || echo "${HOME}/.dotFiles")
+TARGET=$(get_target_directory)
 
-# Default variables
-declare -A DEFAULT_VARIABLES=(
-  ["DOT_FILES_INSTALL_DIRECTORY"]="${DOT_FILES_INSTALL_DIRECTORY}"
-  ["DOT_FILES_APP_INSTALL_DIRECTORY"]="${DOT_FILES_APP_INSTALL_DIRECTORY}"
-  ["DOT_FILES_PLATFORM"]=""  # Initially empty, will be updated dynamically
-)
-
-# Function to detect platform
-detect_platform() {
-  local platform=""
-
-  # Detect platform
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    platform="macOS"
-  elif [[ -f "/etc/os-release" ]] && grep -qi "ubuntu" /etc/os-release; then
-    platform="Ubuntu"
-  else
-    platform="Unknown"
-  fi
-
-  echo "Detected platform: ${platform}"
-  # Update the platform in DEFAULT_VARIABLES
-  DEFAULT_VARIABLES["DOT_FILES_PLATFORM"]="${platform}"
-}
-
-# Function to write a variable to the env file
-write_variable_to_env() {
-  local var_name="$1"
-  local var_value="$2"
-
-  # Append the variable if it's missing
-  if ! grep -q "^${var_name}=" "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null; then
-    echo "${var_name}=\"${var_value}\"" | tee -a "${DOT_FILES_ENV_FILE_LOCATION}" >/dev/null
-    echo "Added missing variable: ${var_name}=\"${var_value}\""
-  fi
-}
-
-# Ensure the environment file exists
-initialize_env_file() {
-  if [[ ! -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
-    mkdir -p "$(dirname "${DOT_FILES_ENV_FILE_LOCATION}")"
-    touch "${DOT_FILES_ENV_FILE_LOCATION}"
-    chmod a+rx "${DOT_FILES_ENV_FILE_LOCATION}"
-    echo "Created environment file at ${DOT_FILES_ENV_FILE_LOCATION}"
-  fi
-}
-
-# Ensure all default variables are present in the env file
-ensure_variables_in_env() {
-  for var_name in "${!DEFAULT_VARIABLES[@]}"; do
-    write_variable_to_env "${var_name}" "${DEFAULT_VARIABLES[$var_name]}"
-  done
-}
-
-# Main logic
-initialize_env_file
-detect_platform  # Detect and update the platform
-ensure_variables_in_env
 
 ############################################################################################################
 #
