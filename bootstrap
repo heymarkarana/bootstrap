@@ -7,7 +7,6 @@
 ############################################################################################################
 
 # This will setup a env file that has the default install directory for dotFiles. Change this manually if you want to install someplace else.
-# This is also mirrored at .dotFiles/Utilities/init.zsh
 # DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles
 # DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 
@@ -17,6 +16,8 @@ DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles"
 DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 DOT_FILES_LOG_LEVEL="WARN"
 DOT_FILES_STDOUT_DISPLAY="false"
+DOT_FILES_GROUP_NAME="kgroup"
+DOT_FILES_DEFAULT_DOMAIN="kuzcotopia.io"
 
 # Function to detect platform
 detect_platform() {
@@ -44,6 +45,8 @@ declare -a VAR_NAMES=(
     "DOT_FILES_PLATFORM"
     "DOT_FILES_LOG_LEVEL"
     "DOT_FILES_STDOUT_DISPLAY"
+    "DOT_FILES_GROUP_NAME"
+    "DOT_FILES_DEFAULT_DOMAIN"
 )
 
 declare -a VAR_VALUES=(
@@ -52,6 +55,8 @@ declare -a VAR_VALUES=(
     "${DOT_FILES_PLATFORM}"
     "${DOT_FILES_LOG_LEVEL}"
     "${DOT_FILES_STDOUT_DISPLAY}"
+    "${DOT_FILES_GROUP_NAME}"
+    "${DOT_FILES_DEFAULT_DOMAIN}"
 )
 # Function to write a variable to the env file
 write_variable_to_env() {
