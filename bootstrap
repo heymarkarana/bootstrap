@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 
-############################################################################################################
-#
-# Start dotFiles initialization
-#
-############################################################################################################
+################################################################################
+##
+##  Start dotFiles initialization
+##
+################################################################################
 
-# This will setup a env file that has the default install directory for dotFiles. Change this manually if you want to install someplace else.
+# This will setup a env file that has the default install directory for dotFiles.
+# Change this manually if you want to install someplace else.
+#
 # DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
-# DOT_FILES_ENV_FILE_LOCATION  <-- must not change. There are other templates hardcoded to this location
+# DOT_FILES_ENV_FILE_LOCATION  <-- must not change. There are other templates
+#                                  hardcoded to this location
 
 DOT_FILES_INSTALL_FOLDER_NAME=".dotFiles"
 DOT_FILES_ENV_FILE="df.env"
@@ -19,6 +22,20 @@ DOT_FILES_LOG_LEVEL="WARN"
 DOT_FILES_STDOUT_DISPLAY="false"
 DOT_FILES_GROUP_NAME="kgroup"
 DOT_FILES_DEFAULT_DOMAIN="kuzcotopia.io"
+DOT_FILES_PLATFORM="" # Will get defined dynamically below
+
+# Define other variables necessary for this script
+BIN_NAME=$(basename "$0")
+COMMAND=$1 # Command entered - install or refresh
+BRANCH=$2  # The branch name or commit reference can be passed as the second argument
+PROJECT="dotFiles"
+REPO1="git@git.kuzcotopia.io:marana/${PROJECT}.git"
+REPO1_NAME="Kuzcotopia"
+REPO2="git@github.com:heymarkarana/${PROJECT}.git"
+REPO2_NAME="GitHub"
+DEFAULT_REPO="${REPO1}" # Default repository
+SELECTED_REPO="${DEFAULT_REPO}"
+TARGET="" # Will get defined dynamically below
 
 # Function to detect platform
 detect_platform() {
@@ -35,9 +52,6 @@ detect_platform() {
 
     echo "$platform"
 }
-
-# Get the platform
-DOT_FILES_PLATFORM=$(detect_platform)
 
 # Default variables
 declare -a VAR_NAMES=(
@@ -99,30 +113,18 @@ get_target_directory() {
     fi
 }
 
+DOT_FILES_PLATFORM=$(detect_platform)  # Get the platform
+TARGET=$(get_target_directory)  # Get the location on where .dotFiles should be installed
+
 # Main logic
 initialize_env_file
 ensure_variables_in_env
 
-# Define other variables necessary for this script
-BIN_NAME=$(basename "$0")
-COMMAND=$1 # Command entered - install or refresh
-BRANCH=$2  # The branch name or commit reference can be passed as the second argument
-PROJECT="dotFiles"
-REPO1="git@git.kuzcotopia.io:marana/${PROJECT}.git"
-REPO1_NAME="Kuzcotopia"
-REPO2="git@github.com:heymarkarana/${PROJECT}.git"
-REPO2_NAME="GitHub"
-DEFAULT_REPO="${REPO1}" # Default repository
-SELECTED_REPO="${DEFAULT_REPO}"
-#TARGET=$(source "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null && echo "${DOT_FILES_INSTALL_DIRECTORY}" || echo "${HOME}/.dotFiles")
-TARGET=$(get_target_directory)
-
-
-############################################################################################################
-#
-# End initialization
-#
-############################################################################################################
+################################################################################
+##
+##  End initialization
+##
+################################################################################
 
 
 # Function to show help information
