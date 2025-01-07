@@ -131,14 +131,24 @@ show_help() {
   echo "Usage: ${BIN_NAME} <command> [branch|tag] [options]"
   echo
   echo "Commands:"
-  echo "   init                       Display the initialization status. Outputs the environment variables defined in the environment file."
+  echo "   init                        Display the initialization status. Outputs the "
+  echo "                               environment variables defined in the environment "
+  echo "                               file. This will also update any new environment "
+  echo "                               variables that may have been created since last "
+  echo "                               build. "
   echo
-  echo "   install                    Set up .dotFiles from scratch. Installs ZSH and Homebrew if required."
-  echo "   install [branch|tag]       Specify a branch or tag to install. Defaults to 'main'."
+  echo "              ---->  RUN THIS REGULARLY  <----"
   echo
-  echo "   refresh                    Refresh the existing .dotFiles repository. Defaults to pulling the 'main' branch."
-  echo "   refresh <branch|tag>       Refresh and pull a specific branch or tag."
-  echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes and reclones the .dotFiles repository."
+  echo "   install                     Set up .dotFiles from scratch. Installs ZSH and "
+  echo "                               Homebrew if required."
+  echo "   install [branch|tag]        Specify a branch or tag to install. Defaults "
+  echo "                               to 'main'."
+  echo
+  echo "   refresh                     Refresh the existing .dotFiles repository. "
+  echo "                               Defaults to pulling the 'main' branch."
+  echo "   refresh <branch|tag>        Refresh and pull a specific branch or tag."
+  echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes "
+  echo "                               and reclones the .dotFiles repository."
   echo
   echo "Options:"
   echo "   --repo <repository>        Specify the repository to clone from. Defaults to:"
