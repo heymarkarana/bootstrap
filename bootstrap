@@ -7,12 +7,13 @@
 ############################################################################################################
 
 # This will setup a env file that has the default install directory for dotFiles. Change this manually if you want to install someplace else.
-# DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles
 # DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
+# DOT_FILES_ENV_FILE_LOCATION  <-- must not change. There are other templates hardcoded to this location
 
+DOT_FILES_INSTALL_FOLDER_NAME=".dotFiles"
 DOT_FILES_ENV_FILE="df.env"
 DOT_FILES_ENV_FILE_LOCATION="${HOME}/.config/dotFiles/${DOT_FILES_ENV_FILE}"
-DOT_FILES_INSTALL_DIRECTORY="${HOME}/.dotFiles"
+DOT_FILES_INSTALL_DIRECTORY="${HOME}/${DOT_FILES_INSTALL_FOLDER_NAME}"
 DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 DOT_FILES_LOG_LEVEL="WARN"
 DOT_FILES_STDOUT_DISPLAY="false"
