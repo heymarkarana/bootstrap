@@ -53,6 +53,8 @@ detect_platform() {
     echo "$platform"
 }
 
+DOT_FILES_PLATFORM=$(detect_platform)  # Get the platform
+
 # Default variables
 declare -a VAR_NAMES=(
     "DOT_FILES_INSTALL_DIRECTORY"
@@ -113,7 +115,6 @@ get_target_directory() {
     fi
 }
 
-DOT_FILES_PLATFORM=$(detect_platform)  # Get the platform
 TARGET=$(get_target_directory)  # Get the location on where .dotFiles should be installed
 
 # Main logic
