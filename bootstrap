@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-################################################################################
 ##
 ##  Start dotFiles initialization
 ##
@@ -8,22 +7,33 @@
 
 # This will setup a env file that has the default install directory for dotFiles.
 # Change this manually if you want to install someplace else.
+################################################################################
 #
 # DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
-# DOT_FILES_ENV_FILE_LOCATION  <-- must not change. There are other templates
+# DF_ENV_FILE_LOCATION  <-- must not change. There are other templates
 #                                  hardcoded to this location
 
-DOT_FILES_INSTALL_FOLDER_NAME=".dotFiles"
-DOT_FILES_ENV_FILE="df.env"
-DOT_FILES_ENV_FILE_LOCATION="${HOME}/.config/dotFiles/${DOT_FILES_ENV_FILE}"
-DOT_FILES_INSTALL_DIRECTORY="${HOME}/${DOT_FILES_INSTALL_FOLDER_NAME}"
+# Determine the logged-in user's home directory when running with sudo
+if [[ -n "$SUDO_USER" ]]; then
+    ORIGINAL_USER_HOME=$(eval echo "~$SUDO_USER")
+else
+    ORIGINAL_USER_HOME="${HOME}"
+fi
+
+DOT_FILES_PROJECT_NAME="dotFiles"
+DOT_FILES_INSTALL_FOLDER_NAME=".${DOT_FILES_PROJECT_NAME}"
+DF_HOME="${ORIGINAL_USER_HOME}/.config/${DOT_FILES_PROJECT_NAME}"
+DF_ENV_FILE="df.env"
+DF_ENV_FILE_LOCATION="${DF_HOME}/${DF_ENV_FILE}"
+DOT_FILES_INSTALL_DIRECTORY="${ORIGINAL_USER_HOME}/${DOT_FILES_INSTALL_FOLDER_NAME}"
 DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
 DOT_FILES_LOG_LEVEL="WARN"
 DOT_FILES_STDOUT_DISPLAY="false"
 DOT_FILES_GROUP_NAME="kgroup"
 DOT_FILES_DEFAULT_DOMAIN="kuzcotopia.io"
+DOT_FILES_HOSTNAME="${hostname}"
 DOT_FILES_PLATFORM="" # Will get defined dynamically below
-DOT_FILES_HOSTNAME=""
+DOT_FILES_BOOTSTRAP_HOME="" # Will get defined dynamically below
 
 # Define other variables necessary for this script
 BIN_NAME=$(basename "$0")
@@ -54,29 +64,51 @@ detect_platform() {
     echo "$platform"
 }
 
+set_bootstrap_home() {
+    if [[ -z "$DOT_FILES_BOOTSTRAP_HOME" ]]; then
+        DOT_FILES_BOOTSTRAP_HOME="$(pwd)"
+        echo "DOT_FILES_BOOTSTRAP_HOME set to: $DOT_FILES_BOOTSTRAP_HOME"
+    else
+        echo "DOT_FILES_BOOTSTRAP_HOME already set to: $DOT_FILES_BOOTSTRAP_HOME"
+    fi
+}
+
 DOT_FILES_PLATFORM=$(detect_platform)  # Get the platform
+DOT_FILES_BOOTSTRAP_HOME=$(set_bootstrap_home)  # Set the bootstrap home
 
 # Default variables
 declare -a VAR_NAMES=(
+    "DOT_FILES_PROJECT_NAME"
+    "DOT_FILES_INSTALL_FOLDER_NAME"
+    "DF_HOME"
+    "DF_ENV_FILE"
+    "DF_ENV_FILE_LOCATION"
     "DOT_FILES_INSTALL_DIRECTORY"
     "DOT_FILES_APP_INSTALL_DIRECTORY"
-    "DOT_FILES_PLATFORM"
     "DOT_FILES_LOG_LEVEL"
     "DOT_FILES_STDOUT_DISPLAY"
     "DOT_FILES_GROUP_NAME"
     "DOT_FILES_DEFAULT_DOMAIN"
     "DOT_FILES_HOSTNAME"
+    "DOT_FILES_PLATFORM"
+    "DOT_FILES_BOOTSTRAP_HOME"
 )
 
 declare -a VAR_VALUES=(
+    "${DOT_FILES_PROJECT_NAME}"
+    "${DOT_FILES_INSTALL_FOLDER_NAME}"
+    "${DF_HOME}"
+    "${DF_ENV_FILE}"
+    "${DF_ENV_FILE_LOCATION}"
     "${DOT_FILES_INSTALL_DIRECTORY}"
     "${DOT_FILES_APP_INSTALL_DIRECTORY}"
-    "${DOT_FILES_PLATFORM}"
     "${DOT_FILES_LOG_LEVEL}"
     "${DOT_FILES_STDOUT_DISPLAY}"
     "${DOT_FILES_GROUP_NAME}"
     "${DOT_FILES_DEFAULT_DOMAIN}"
     "${DOT_FILES_HOSTNAME}"
+    "${DOT_FILES_PLATFORM}"
+    "${DOT_FILES_BOOTSTRAP_HOME}"
 )
 # Function to write a variable to the env file
 write_variable_to_env() {
@@ -84,19 +116,19 @@ write_variable_to_env() {
     local var_value="$2"
 
     # Append the variable if it's missing
-    if ! grep -q "^${var_name}=" "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null; then
-        echo "${var_name}=\"${var_value}\"" | tee -a "${DOT_FILES_ENV_FILE_LOCATION}" >/dev/null
+    if ! grep -q "^${var_name}=" "${DF_ENV_FILE_LOCATION}" 2>/dev/null; then
+        echo "${var_name}=\"${var_value}\"" | tee -a "${DF_ENV_FILE_LOCATION}" >/dev/null
         echo "Added missing variable: ${var_name}=\"${var_value}\""
     fi
 }
 
 # Ensure the environment file exists
 initialize_env_file() {
-    if [[ ! -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
-        mkdir -p "$(dirname "${DOT_FILES_ENV_FILE_LOCATION}")"
-        touch "${DOT_FILES_ENV_FILE_LOCATION}"
-        chmod a+rx "${DOT_FILES_ENV_FILE_LOCATION}"
-        echo "Created environment file at ${DOT_FILES_ENV_FILE_LOCATION}"
+    if [[ ! -f "${DF_ENV_FILE_LOCATION}" ]]; then
+        mkdir -p "$(dirname "${DF_ENV_FILE_LOCATION}")"
+        touch "${DF_ENV_FILE_LOCATION}"
+        chmod a+rx "${DF_ENV_FILE_LOCATION}"
+        echo "Created environment file at ${DF_ENV_FILE_LOCATION}"
     fi
 }
 
@@ -108,13 +140,14 @@ ensure_variables_in_env() {
     done
 }
 
+# Get directory where .dotFiles should be installed or default to ~/.dotFiles
 get_target_directory() {
-    if [[ -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
+    if [[ -f "${DF_ENV_FILE_LOCATION}" ]]; then
         # shellcheck disable=SC1090
-        source "${DOT_FILES_ENV_FILE_LOCATION}" 2>/dev/null
+        source "${DF_ENV_FILE_LOCATION}" 2>/dev/null
         echo "${DOT_FILES_INSTALL_DIRECTORY}"
     else
-        echo "${HOME}/.dotFiles"
+        echo "${ORIGINAL_USER_HOME}/.dotFiles"
     fi
 }
 
@@ -247,10 +280,10 @@ introduction() {
 init_dotfiles() {
   echo "Initialization complete. dotFile variables in environment file are:"
   echo "---------------------------------------------------"
-  if [[ -f "${DOT_FILES_ENV_FILE_LOCATION}" ]]; then
-    cat "${DOT_FILES_ENV_FILE_LOCATION}"
+  if [[ -f "${DF_ENV_FILE_LOCATION}" ]]; then
+    cat "${DF_ENV_FILE_LOCATION}"
   else
-    echo "Environment file not found at ${DOT_FILES_ENV_FILE_LOCATION}."
+    echo "Environment file not found at ${DF_ENV_FILE_LOCATION}."
   fi
   echo "---------------------------------------------------"
 }
@@ -319,8 +352,8 @@ install_homebrew() {
       echo "Installing Homebrew..."
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-      if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${HOME}/.zshrc"; then
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"${HOME}/.zshrc"
+      if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${ORIGINAL_USER_HOME}/.zshrc"; then
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"${ORIGINAL_USER_HOME}/.zshrc"
       fi
 
       eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -336,12 +369,12 @@ install_homebrew() {
 # Function to install ZSH
 install_zsh() {
   if command -v zsh &>/dev/null; then
-    touch "${HOME}/.zshrc"
+    touch "${ORIGINAL_USER_HOME}/.zshrc"
     echo "ZSH is already installed."
   else
     echo "Installing ZSH..."
     sudo apt update -q && sudo apt install -y zsh
-    touch "${HOME}/.zshrc"
+    touch "${ORIGINAL_USER_HOME}/.zshrc"
     echo "ZSH installation complete."
   fi
 }
@@ -422,8 +455,8 @@ init)
   ;;
 install)
   # Ensure the bootstrap script exists and is executable
-  if [[ -x "${HOME}/.bootstrap/GitHarness.sh" ]]; then
-    "${HOME}/.bootstrap/GitHarness.sh"
+  if [[ -x "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh" ]]; then
+    "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh"
   fi
   install_dotfiles
   introduction
