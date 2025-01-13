@@ -67,9 +67,6 @@ detect_platform() {
 set_bootstrap_home() {
     if [[ -z "$DOT_FILES_BOOTSTRAP_HOME" ]]; then
         DOT_FILES_BOOTSTRAP_HOME="$(pwd)"
-        echo "DOT_FILES_BOOTSTRAP_HOME set to: $DOT_FILES_BOOTSTRAP_HOME"
-    else
-        echo "DOT_FILES_BOOTSTRAP_HOME already set to: $DOT_FILES_BOOTSTRAP_HOME"
     fi
 }
 
