@@ -276,6 +276,7 @@ introduction() {
 
 # New function to handle the "init" command
 init_dotfiles() {
+  echo
   echo "Initialization complete. dotFile variables in environment file are:"
   echo "---------------------------------------------------"
   if [[ -f "${DF_ENV_FILE_LOCATION}" ]]; then
