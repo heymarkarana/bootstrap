@@ -36,6 +36,8 @@ DOT_FILES_HOME="${DOT_FILES_INSTALL_DIRECTORY}"
 DOT_FILES_MONOKAI_CONFIG_SYNTAX_HIGHLIGHTING_PATH=""
 DOT_FILES_PLATFORM="" # Will get defined dynamically below
 DOT_FILES_BOOTSTRAP_HOME="" # Will get defined dynamically below
+DOT_FILES_GIT_STATUS_DOTFILES=""
+DOT_FILES_GIT_STATUS_BOOTSTRAP=""
 
 # Define other variables necessary for this script
 BIN_NAME=$(basename "$0")
@@ -94,6 +96,8 @@ declare -a VAR_NAMES=(
     "DOT_FILES_MONOKAI_CONFIG_SYNTAX_HIGHLIGHTING_PATH"
     "DOT_FILES_PLATFORM"
     "DOT_FILES_BOOTSTRAP_HOME"
+    "DOT_FILES_GIT_STATUS_DOTFILES"
+    "DOT_FILES_GIT_STATUS_BOOTSTRAP"
 )
 
 declare -a VAR_VALUES=(
@@ -113,6 +117,8 @@ declare -a VAR_VALUES=(
     "${DOT_FILES_MONOKAI_CONFIG_SYNTAX_HIGHLIGHTING_PATH}"
     "${DOT_FILES_PLATFORM}"
     "${DOT_FILES_BOOTSTRAP_HOME}"
+    "${DOT_FILES_GIT_STATUS_DOTFILES}"
+    "${DOT_FILES_GIT_STATUS_BOOTSTRAP}"
 )
 # Function to write a variable to the env file
 write_variable_to_env() {
