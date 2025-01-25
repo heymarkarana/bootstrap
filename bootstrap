@@ -400,16 +400,9 @@ install_dotfiles() {
   local branch_or_tag="${BRANCH:-main}"
 
   echo "Cloning dotFiles from ${SELECTED_REPO}..."
-  if git clone "${SELECTED_REPO}" "${TARGET}"; then
+  # Clone only the top level of the repository
+  if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
     cd "${TARGET}" || exit 1
-    # Checkout branch or tag
-    if git rev-parse --verify "refs/tags/${branch_or_tag}" >/dev/null 2>&1; then
-      echo "Checking out tag ${branch_or_tag}..."
-      git checkout "tags/${branch_or_tag}" -b "${branch_or_tag}-branch"
-    else
-      echo "Checking out branch ${branch_or_tag}..."
-      git checkout "${branch_or_tag}"
-    fi
     echo "dotFiles setup complete."
     switch_to_zsh
   else
@@ -427,17 +420,13 @@ refresh_dotfiles() {
     branch_or_tag="${2:-main}"
     echo "Performing a hard reset to ${branch_or_tag}..."
     rm -rf "${TARGET}"
-    git clone "${SELECTED_REPO}" "${TARGET}" || {
+    # Clone only the top level of the repository
+    if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
+      cd "${TARGET}" || exit 1
+      echo "dotFiles refreshed with a hard reset."
+    else
       echo "Failed to clone repository. Exiting."
       exit 1
-    }
-    cd "${TARGET}" || exit 1
-    if git rev-parse --verify "refs/tags/${branch_or_tag}" >/dev/null 2>&1; then
-      echo "Checking out tag ${branch_or_tag}..."
-      git checkout "tags/${branch_or_tag}" -b "${branch_or_tag}-branch"
-    else
-      echo "Checking out branch ${branch_or_tag}..."
-      git checkout "${branch_or_tag}"
     fi
   else
     cd "${TARGET}" || exit 1
