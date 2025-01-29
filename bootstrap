@@ -39,6 +39,7 @@ DOT_FILES_BOOTSTRAP_HOME="" # Will get defined dynamically below
 DOT_FILES_GIT_STATUS_DOTFILES=""
 DOT_FILES_GIT_STATUS_BOOTSTRAP=""
 HOMEBREW_OUTDATED_PACKAGES=""
+APT_OUTDATED_PACKAGES=""
 
 # Define other variables necessary for this script
 BIN_NAME=$(basename "$0")
@@ -100,6 +101,7 @@ declare -a VAR_NAMES=(
     "DOT_FILES_GIT_STATUS_DOTFILES"
     "DOT_FILES_GIT_STATUS_BOOTSTRAP"
     "HOMEBREW_OUTDATED_PACKAGES"
+    "APT_OUTDATED_PACKAGES"
 )
 
 declare -a VAR_VALUES=(
@@ -122,6 +124,7 @@ declare -a VAR_VALUES=(
     "${DOT_FILES_GIT_STATUS_DOTFILES}"
     "${DOT_FILES_GIT_STATUS_BOOTSTRAP}"
     "${HOMEBREW_OUTDATED_PACKAGES}"
+    "${APT_OUTDATED_PACKAGES}"
 )
 # Function to write a variable to the env file
 write_variable_to_env() {
