@@ -7,16 +7,16 @@ From there, it will proceed to clone a dotFiles folder that can be further proce
 ```
 sudo softwareupdate -i -a
 xcode-select --install
-git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap
+git clone http://git.thesecretlab.io/marana/bootstrap.git $HOME/.bootstrap
 $HOME/.bootstrap/bootstrap install
 ```
 **Alternatively**
 ```
-git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install
+git clone http://git.thesecretlab.io/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install
 ```
 **Dev Branch**
 ```
-git clone http://git.kuzcotopia.io:3000/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install dev
+git clone http://git.thesecretlab.io/marana/bootstrap.git $HOME/.bootstrap && cd $HOME/.bootstrap && ./bootstrap install dev
 ```
 **Break in case of emergency**
 ```
