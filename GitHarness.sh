@@ -82,7 +82,7 @@ url=""
 case "$choice" in
   1) url="https://github.com/settings/keys" ;;
   2) url="https://gitlab.com/profile/keys" ;;
-  3) url="http://git.kuzcotopia.io:3000/user/settings/keys" ;;
+  3) url="http://git.thesecretlab.io/user/settings/keys" ;;
   4) echo "Skipping service configuration." ;;
   *) echo "Invalid choice. Please manually add your SSH key to the appropriate service." ;;
 esac
