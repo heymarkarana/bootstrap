@@ -1,332 +1,79 @@
 #!/usr/bin/env bash
 
 ##
-##  Start dotFiles initialization
+##  dotFiles bootstrap script (cleaned & platform unified)
 ##
-################################################################################
 
-# This will setup a env file that has the default install directory for dotFiles.
-# Change this manually if you want to install someplace else.
-################################################################################
-#
-# DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
-# DF_ENV_FILE_LOCATION  <-- must not change. There are other templates
-#                                  hardcoded to this location
-
-# Determine the logged-in user's home directory when running with sudo
+# Determine the original user's home directory when using sudo
 if [[ -n "$SUDO_USER" ]]; then
-    ORIGINAL_USER_HOME=$(eval echo "~$SUDO_USER")
+  ORIGINAL_USER_HOME=$(eval echo "~$SUDO_USER")
 else
-    ORIGINAL_USER_HOME="${HOME}"
+  ORIGINAL_USER_HOME="${HOME}"
 fi
 
-DOT_FILES_PROJECT_NAME="dotFiles"
-DOT_FILES_APP_INSTALL_DIRECTORY="/opt/kuzcotopia"
-DOT_FILES_INSTALL_FOLDER_NAME=".${DOT_FILES_PROJECT_NAME}"
-DF_HOME="${ORIGINAL_USER_HOME}/.config/${DOT_FILES_PROJECT_NAME}"
-DF_ENV_FILE="df.env"
-DF_ENV_FILE_LOCATION="${DF_HOME}/${DF_ENV_FILE}"
-
-DOT_FILES_APP_BACKUP_TARGET="/mnt/tumi/backup"
-DOT_FILES_BOOTSTRAP_HOME="" # Will get defined dynamically below
-DOT_FILES_DEFAULT_DOMAIN="kuzcotopia.io"
-DOT_FILES_GIT_STATUS_BOOTSTRAP=""
-DOT_FILES_GIT_STATUS_DOTFILES=""
-DOT_FILES_GROUP_NAME="kgroup"
-DOT_FILES_HOSTNAME="${hostname}"
-DOT_FILES_INSTALL_DIRECTORY="${ORIGINAL_USER_HOME}/${DOT_FILES_INSTALL_FOLDER_NAME}"
-DOT_FILES_HOME="${DOT_FILES_INSTALL_DIRECTORY}"
-DOT_FILES_LOG_LEVEL="WARN"
-DOT_FILES_MONOKAI_CONFIG_SYNTAX_HIGHLIGHTING_PATH=""
-DOT_FILES_PLATFORM="" # Will get defined dynamically below
-DOT_FILES_STDOUT_DISPLAY="false"
-DOT_FILES_BACKUP_NOTIFY="off"
-
-APT_OUTDATED_PACKAGES=""
-HOMEBREW_OUTDATED_PACKAGES=""
-
-# Define other variables necessary for this script
-BIN_NAME=$(basename "$0")
-COMMAND=$1 # Command entered - install or refresh
-BRANCH=$2  # The branch name or commit reference can be passed as the second argument
-PROJECT="dotFiles"
-REPO1="git@git.thesecretlab.io:marana/${PROJECT}.git"
+#######################################################
+##               Project Settings                   ##
+#######################################################
+DF_PROJECT_NAME="dotFiles"
+REPO1="git@git.thesecretlab.io:marana/dotFiles.git"
 REPO1_NAME="Kuzcotopia"
-REPO2="git@github.com:heymarkarana/${PROJECT}.git"
+REPO2="git@github.com:heymarkarana/dotFiles.git"
 REPO2_NAME="GitHub"
-DEFAULT_REPO="${REPO1}" # Default repository
+
+DF_INSTALL_FOLDER_NAME=".${DF_PROJECT_NAME}"
+
+BIN_NAME=$(basename "$0")
+COMMAND=$1
+BRANCH=$2
+
+DEFAULT_REPO="${REPO1}"
 SELECTED_REPO="${DEFAULT_REPO}"
-TARGET="" # Will get defined dynamically below
+TARGET="${ORIGINAL_USER_HOME}/${DF_INSTALL_FOLDER_NAME}"
 
-# Function to detect platform
+# Detect OS platform and return one of: macOS, ubuntu
 detect_platform() {
-    local platform=""
-
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        platform="macOS"
-    elif [[ -f "/etc/lsb-release" ]] && grep -q "Ubuntu" "/etc/lsb-release"; then
-        platform="ubuntu"
-    else
-        echo "Error: Unsupported platform. Only macOS and ubuntu are supported."
-        exit 1
-    fi
-
-    echo "$platform"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "macOS"
+  elif [[ -f "/etc/lsb-release" ]] && grep -q "Ubuntu" "/etc/lsb-release"; then
+    echo "ubuntu"
+  else
+    echo "Error: Unsupported platform. Only macOS and Ubuntu are supported." >&2
+    exit 1
+  fi
 }
 
+# Get current working directory as bootstrap home
 set_bootstrap_home() {
-    if [[ -z "$DOT_FILES_BOOTSTRAP_HOME" ]]; then
-        DOT_FILES_BOOTSTRAP_HOME="$(pwd)"
-        echo "${DOT_FILES_BOOTSTRAP_HOME}"
-    fi
+  [[ -z "$DF_BOOTSTRAP_HOME" ]] && DF_BOOTSTRAP_HOME="$(pwd)"
+  echo "${DF_BOOTSTRAP_HOME}"
 }
 
-DOT_FILES_PLATFORM=$(detect_platform)  # Get the platform
-DOT_FILES_BOOTSTRAP_HOME=$(set_bootstrap_home)  # Set the bootstrap home
+DF_PLATFORM=$(detect_platform)
+DF_BOOTSTRAP_HOME=$(set_bootstrap_home)
 
-# Default variables
-declare -a VAR_NAMES=(
-    "DOT_FILES_PROJECT_NAME"
-    "DOT_FILES_INSTALL_FOLDER_NAME"
-    "DF_HOME"
-    "DF_ENV_FILE"
-    "DF_ENV_FILE_LOCATION"
-
-    "DOT_FILES_APP_BACKUP_TARGET"
-    "DOT_FILES_APP_INSTALL_DIRECTORY"
-    "DOT_FILES_BOOTSTRAP_HOME"
-    "DOT_FILES_DEFAULT_DOMAIN"
-    "DOT_FILES_GIT_STATUS_BOOTSTRAP"
-    "DOT_FILES_GIT_STATUS_DOTFILES"
-    "DOT_FILES_GROUP_NAME"
-    "DOT_FILES_HOSTNAME"
-    "DOT_FILES_INSTALL_DIRECTORY"
-    "DOT_FILES_HOME"
-    "DOT_FILES_LOG_LEVEL"
-    "DOT_FILES_MONOKAI_CONFIG_SYNTAX_HIGHLIGHTING_PATH"
-    "DOT_FILES_PLATFORM"
-    "DOT_FILES_STDOUT_DISPLAY"
-    "DOT_FILES_BACKUP_NOTIFY"
-
-    "APT_OUTDATED_PACKAGES"
-    "HOMEBREW_OUTDATED_PACKAGES"
-)
-
-declare -a VAR_VALUES=(
-    "${DOT_FILES_PROJECT_NAME}"
-    "${DOT_FILES_INSTALL_FOLDER_NAME}"
-    "${DF_HOME}"
-    "${DF_ENV_FILE}"
-    "${DF_ENV_FILE_LOCATION}"
-
-    "${DOT_FILES_APP_BACKUP_TARGET}"
-    "${DOT_FILES_APP_INSTALL_DIRECTORY}"
-    "${DOT_FILES_BOOTSTRAP_HOME}"
-    "${DOT_FILES_DEFAULT_DOMAIN}"
-    "${DOT_FILES_GIT_STATUS_BOOTSTRAP}"
-    "${DOT_FILES_GIT_STATUS_DOTFILES}"
-    "${DOT_FILES_GROUP_NAME}"
-    "${DOT_FILES_HOSTNAME}"
-    "${DOT_FILES_INSTALL_DIRECTORY}"
-    "${DOT_FILES_HOME}"
-    "${DOT_FILES_LOG_LEVEL}"
-    "${DOT_FILES_MONOKAI_CONFIG_SYNTAX_HIGHLIGHTING_PATH}"
-    "${DOT_FILES_PLATFORM}"
-    "${DOT_FILES_STDOUT_DISPLAY}"
-    "${DOT_FILES_BACKUP_NOTIFY}"
-
-    "${APT_OUTDATED_PACKAGES}"
-    "${HOMEBREW_OUTDATED_PACKAGES}"
-)
-
-# Function to write a variable to the env file
-write_variable_to_env() {
-    local var_name="$1"
-    local var_value="$2"
-
-    # Append the variable if it's missing
-    if ! grep -q "^${var_name}=" "${DF_ENV_FILE_LOCATION}" 2>/dev/null; then
-        echo "${var_name}=\"${var_value}\"" | tee -a "${DF_ENV_FILE_LOCATION}" >/dev/null
-        echo "Added missing variable: ${var_name}=\"${var_value}\""
-    fi
-}
-
-# Ensure the environment file exists
-initialize_env_file() {
-    if [[ ! -f "${DF_ENV_FILE_LOCATION}" ]]; then
-        mkdir -p "$(dirname "${DF_ENV_FILE_LOCATION}")"
-        touch "${DF_ENV_FILE_LOCATION}"
-        chmod a+rx "${DF_ENV_FILE_LOCATION}"
-        echo "Created environment file at ${DF_ENV_FILE_LOCATION}"
-    fi
-}
-
-# Ensure all default variables are present in the env file
-ensure_variables_in_env() {
-    local i
-    for i in "${!VAR_NAMES[@]}"; do
-        write_variable_to_env "${VAR_NAMES[$i]}" "${VAR_VALUES[$i]}"
-    done
-}
-
-# Get directory where .dotFiles should be installed or default to ~/.dotFiles
-get_target_directory() {
-    if [[ -f "${DF_ENV_FILE_LOCATION}" ]]; then
-        # shellcheck disable=SC1090
-        source "${DF_ENV_FILE_LOCATION}" 2>/dev/null
-        echo "${DOT_FILES_INSTALL_DIRECTORY}"
-    else
-        echo "${ORIGINAL_USER_HOME}/.dotFiles"
-    fi
-}
-
-TARGET=$(get_target_directory)  # Get the location on where .dotFiles should be installed
-
-# Main logic
-initialize_env_file
-ensure_variables_in_env
-
-################################################################################
-##
-##  End initialization
-##
-################################################################################
-
-
-# Function to show help information
 show_help() {
   echo
   echo "Usage: ${BIN_NAME} <command> [branch|tag] [options]"
   echo
   echo "Commands:"
-  echo "   init                        Display the initialization status. Outputs the "
-  echo "                               environment variables defined in the environment "
-  echo "                               file. This will also update any new environment "
-  echo "                               variables that may have been created since last "
-  echo "                               build. "
-  echo
-  echo "              ---->  RUN THIS REGULARLY  <----"
-  echo
-  echo "   install                     Set up .dotFiles from scratch. Installs ZSH and "
-  echo "                               Homebrew if required."
-  echo "   install [branch|tag]        Specify a branch or tag to install. Defaults "
-  echo "                               to 'main'."
-  echo
-  echo "   refresh                     Refresh the existing .dotFiles repository. "
-  echo "                               Defaults to pulling the 'main' branch."
+  echo "   install                     Set up .dotFiles from scratch. Installs ZSH and Homebrew if required."
+  echo "   install [branch|tag]        Specify a branch or tag to install. Defaults to 'main'."
+  echo "   refresh                     Refresh the existing .dotFiles repository."
   echo "   refresh <branch|tag>        Refresh and pull a specific branch or tag."
-  echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes "
-  echo "                               and reclones the .dotFiles repository."
+  echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes and reclones the repo."
   echo
   echo "Options:"
-  echo "   --repo <repository>        Specify the repository to clone from. Defaults to:"
-  echo "                               - ${REPO1_NAME}: ${REPO1}"
-  echo "                               - ${REPO2_NAME}: ${REPO2}"
-  echo
-  echo "Examples:"
-  echo
-  echo "   Init Example:"
-  echo "     1. Display environment variables:"
-  echo "        ./$(basename "$0") init"
-  echo
-  echo "   Install Examples:"
-  echo "     1. Install from the default (main) branch:"
-  echo "        ./$(basename "$0") install"
-  echo
-  echo "     2. Install from a specific branch:"
-  echo "        ./$(basename "$0") install develop"
-  echo
-  echo "     3. Install from a specific tag:"
-  echo "        ./$(basename "$0") install v2.1.2"
-  echo
-  echo "     4. Install from a specific repository:"
-  echo "        ./$(basename "$0") install --repo git@github.com:heymarkarana/dotFiles.git"
-  echo
-  echo "   Refresh Examples:"
-  echo "     1. Refresh the current branch (default: main):"
-  echo "        ./$(basename "$0") refresh"
-  echo
-  echo "     2. Refresh a specific branch:"
-  echo "        ./$(basename "$0") refresh feature/my-update"
-  echo
-  echo "     3. Refresh to a specific tag:"
-  echo "        ./$(basename "$0") refresh v2.1.2"
-  echo
-  echo "     4. Perform a hard reset to the main branch:"
-  echo "        ./$(basename "$0") refresh --hard main"
-  echo
-  echo "     5. Perform a hard reset to a specific tag:"
-  echo "        ./$(basename "$0") refresh --hard v2.1.2"
-  echo
-  echo "   Using Custom Repository:"
-  echo "     1. Install from a custom repository:"
-  echo "        ./$(basename "$0") install --repo git@github.com:heymarkarana/dotFiles.git"
-  echo
-  echo "     2. Refresh a specific branch from a custom repository:"
-  echo "        ./$(basename "$0") refresh feature/experimental --repo git@github.com:heymarkarana/dotFiles.git"
-  echo
-  echo "     3. Perform a hard reset to a tag from a custom repository:"
-  echo "        ./$(basename "$0") refresh --hard v2.1.2 --repo git@github.com:heymarkarana/dotFiles.git"
-  echo
-  echo "Notes:"
-  echo "   - Tags are immutable snapshots. If you check out a tag, a new branch will be created for further changes."
-  echo "   - If '--repo' is not specified, the default repository (${DEFAULT_REPO}) will be used."
+  echo "   --repo <repository>        Specify the repository to clone from."
   echo
 }
 
-introduction() {
-
-  echo
-  echo
-  echo " ________________________________________"
-  echo "/ Chuck Norris does not use spell check. \\"
-  echo "| If he happens to misspell a word,      |"
-  echo "\\ Oxford will change the spelling        /"
-  echo " ----------------------------------------"
-  echo "        ^__^"
-  echo "        (oo)\\_______"
-  echo "        (__)\\       )\\/\\"
-  echo "            ||----w |"
-  echo "            ||     ||"
-  echo
-  echo "\033[31m Hold onto your butts...\033[0m"
-  echo
-  echo
-  echo -e " \033[32mdotFiles\033[0m - installation and configuration made easy."
-  echo
-  echo "This will install for both Ubuntu and macOS instances. macOS virtual "
-  echo "machine environts will skip macApp store installation. Profiles may"
-  echo "be setup in the profiles directory."
-  echo
-  echo "Caveat Emptor"
-  echo "        -- Mr. Brady."
-  echo
-  echo
-
-}
-
-# New function to handle the "init" command
-init_dotfiles() {
-  echo
-  echo "Initialization complete. dotFile variables in environment file are:"
-  echo "---------------------------------------------------"
-  if [[ -f "${DF_ENV_FILE_LOCATION}" ]]; then
-    cat "${DF_ENV_FILE_LOCATION}"
-  else
-    echo "Environment file not found at ${DF_ENV_FILE_LOCATION}."
-  fi
-  echo "---------------------------------------------------"
-}
-
-# Parse additional arguments
 parse_arguments() {
   while [[ $# -gt 0 ]]; do
     case $1 in
-    --repo)
-      SELECTED_REPO=$2
-      shift # Consume argument value
-      ;;
-    *) ;;
+      --repo)
+        SELECTED_REPO=$2
+        shift
+        ;;
     esac
     shift
   done
@@ -335,12 +82,9 @@ parse_arguments() {
 switch_to_zsh() {
   local current_shell zsh_path
 
-  # Determine the current shell
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS: get current shell
+  if [[ "$DF_PLATFORM" == "macOS" ]]; then
     current_shell=$(dscl . -read /Users/"$USER" UserShell | awk '{print $2}')
   else
-    # Linux: get current shell
     if command -v getent >/dev/null 2>&1; then
       current_shell=$(getent passwd "$USER" | cut -d: -f7)
     else
@@ -348,78 +92,75 @@ switch_to_zsh() {
     fi
   fi
 
-  # Determine the path to zsh
   zsh_path=$(command -v zsh)
 
-  # Check if zsh is already the current shell
   if [[ "$current_shell" == "$zsh_path" ]]; then
-    echo "zsh is already the default shell."
-    echo "Switching to zsh for the current session..."
+    echo "zsh is already the default shell. Switching for current session..."
     exec "$zsh_path"
     return 0
   fi
 
-  # Change the default shell only on Linux
-  if [[ "$OSTYPE" != "darwin"* ]]; then
+  if [[ "$DF_PLATFORM" == "ubuntu" ]]; then
     echo "Changing default shell to zsh..."
     chsh -s "$zsh_path"
-    if [[ $? -ne 0 ]]; then
-      echo "Failed to change the default shell. Please check your permissions."
-      return 1
-    fi
-    echo "Default shell successfully changed to zsh."
   fi
 
-  # Switch to zsh in the current session
-  echo "Switching to zsh for the current session..."
+  echo "Switching to zsh for current session..."
   exec "$zsh_path"
 }
 
-# Function to install Homebrew on macOS
 install_homebrew() {
-  if [[ "$(uname)" == "Darwin" ]]; then
-    if ! command -v brew &>/dev/null; then
-      echo "Installing Homebrew..."
-      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-      if ! grep -q "eval \"\$(/opt/homebrew/bin/brew shellenv)\"" "${ORIGINAL_USER_HOME}/.zshrc"; then
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"${ORIGINAL_USER_HOME}/.zshrc"
-      fi
-
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-      echo "Homebrew installation complete."
-    else
-      echo "Homebrew is already installed."
-    fi
+  if [[ "$DF_PLATFORM" == "macOS" ]] && ! command -v brew &>/dev/null; then
+    echo "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "${ORIGINAL_USER_HOME}/.zshrc"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    echo "Homebrew installation complete."
   else
-    echo "Skipping Homebrew installation: not on macOS."
+    echo "Homebrew already installed or not on macOS."
   fi
 }
 
-# Function to install ZSH
 install_zsh() {
-  if command -v zsh &>/dev/null; then
-    touch "${ORIGINAL_USER_HOME}/.zshrc"
-    echo "ZSH is already installed."
-  else
+  if ! command -v zsh &>/dev/null; then
     echo "Installing ZSH..."
-    sudo apt update -q && sudo apt install -y zsh
-    touch "${ORIGINAL_USER_HOME}/.zshrc"
-    echo "ZSH installation complete."
+    if [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+      sudo apt update -q && sudo apt install -y zsh
+    fi
+  fi
+  touch "${ORIGINAL_USER_HOME}/.zshrc"
+  echo "ZSH ready."
+}
+
+verify_git_access() {
+  local host
+  host=$(echo "$SELECTED_REPO" | sed -n 's#.*@\([^:]*\):.*#\1#p')
+
+  if [[ -z "$host" ]]; then
+    echo "Could not parse SSH host from repository: $SELECTED_REPO"
+    return 1
+  fi
+
+  echo "Verifying SSH access to ${host}..."
+  if ssh -o BatchMode=yes -T "git@${host}" 2>&1 | grep -qi "successfully authenticated"; then
+    echo "✅ SSH access to ${host} verified."
+  else
+    echo "❌ SSH access to ${host} failed."
+    echo "Make sure your SSH key is added to ${host} (e.g., GitHub or Forgejo)."
+    echo "You can manually test with: ssh -T git@${host}"
+    exit 1
   fi
 }
 
-# Function to set up dotFiles
 install_dotfiles() {
   echo "Setting up .dotFiles..."
   install_homebrew
   install_zsh
+  verify_git_access
 
-  # Branch or tag to use (default: main)
   local branch_or_tag="${BRANCH:-main}"
 
-  echo "Cloning dotFiles from ${SELECTED_REPO}..."
-  # Clone only the top level of the repository
+  echo "Cloning from ${SELECTED_REPO}..."
   if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
     cd "${TARGET}" || exit 1
     echo "dotFiles setup complete."
@@ -430,62 +171,54 @@ install_dotfiles() {
   fi
 }
 
-# Function to refresh dotFiles
 refresh_dotfiles() {
   echo "Refreshing .dotFiles..."
   local branch_or_tag="${1:-main}"
 
   if [[ "${branch_or_tag}" == "--hard" ]]; then
     branch_or_tag="${2:-main}"
-    echo "Performing a hard reset to ${branch_or_tag}..."
+    echo "Hard reset to ${branch_or_tag}..."
     rm -rf "${TARGET}"
-    # Clone only the top level of the repository
     if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
       cd "${TARGET}" || exit 1
-      echo "dotFiles refreshed with a hard reset."
     else
-      echo "Failed to clone repository. Exiting."
+      echo "Clone failed. Exiting."
       exit 1
     fi
   else
     cd "${TARGET}" || exit 1
     if git rev-parse --verify "refs/tags/${branch_or_tag}" >/dev/null 2>&1; then
-      echo "Fetching and checking out tag ${branch_or_tag}..."
+      echo "Checking out tag ${branch_or_tag}..."
       git fetch --tags
       git checkout "tags/${branch_or_tag}" -b "${branch_or_tag}-branch"
     else
-      echo "Pulling latest updates from branch ${branch_or_tag}..."
-      git pull origin "${branch_or_tag}" || {
-        echo "Failed to pull updates. Exiting."
-        exit 1
-      }
+      echo "Pulling updates from branch ${branch_or_tag}..."
+      git pull origin "${branch_or_tag}" || exit 1
     fi
   fi
 }
 
-# Main script logic
+# Main logic
 parse_arguments "$@"
 case ${COMMAND} in
-"" | "-h" | "--help")
-  show_help
-  ;;
-init)
-  init_dotfiles
-  ;;
-install)
-  # Ensure the bootstrap script exists and is executable
-  if [[ -x "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh" ]]; then
-    "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh"
-  fi
-  install_dotfiles
-  introduction
-  ;;
-refresh)
-  refresh_dotfiles "$2"
-  ;;
-*)
-  echo "Unknown command: ${COMMAND}" >&2
-  show_help
-  exit 1
-  ;;
+  "" | "-h" | "--help")
+    show_help
+    ;;
+  init)
+    echo "Environment file is now managed separately. No action performed."
+    ;;
+  install)
+    if [[ -x "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh" ]]; then
+      "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh"
+    fi
+    install_dotfiles
+    ;;
+  refresh)
+    refresh_dotfiles "$2"
+    ;;
+  *)
+    echo "Unknown command: ${COMMAND}" >&2
+    show_help
+    exit 1
+    ;;
 esac
