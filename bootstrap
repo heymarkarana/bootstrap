@@ -79,6 +79,40 @@ parse_arguments() {
   done
 }
 
+# Usage: convert_git_remote_to_ssh /path/to/repo git@yourdomain:username/repo.git
+
+convert_git_remote_to_ssh() {
+  local repo_path="$1"
+  local remote_url="$2"
+
+  if [[ ! -d "$repo_path/.git" ]]; then
+    echo "[✗] Not a Git repository: $repo_path"
+    return 1
+  fi
+
+  # Derive SSH URL from provided HTTP(S) URL if given
+  if [[ -n "$remote_url" ]]; then
+    if [[ "$remote_url" =~ ^https?:// ]]; then
+      local stripped_url="${remote_url#http://}"
+      stripped_url="${stripped_url#https://}"
+      remote_url="git@${stripped_url//\//:}"
+    fi
+  else
+    remote_url=$(git -C "$repo_path" remote get-url origin)
+    if [[ "$remote_url" =~ ^https?:// ]]; then
+      local stripped_url="${remote_url#http://}"
+      stripped_url="${stripped_url#https://}"
+      remote_url="git@${stripped_url//\//:}"
+    else
+      echo "[i] Remote is already using SSH: $remote_url"
+      return 0
+    fi
+  fi
+
+  echo "[→] Setting remote 'origin' to: $remote_url"
+  git -C "$repo_path" remote set-url origin "$remote_url"
+}
+
 switch_to_zsh() {
   local current_shell zsh_path
 
@@ -157,6 +191,8 @@ install_dotfiles() {
   install_homebrew
   install_zsh
   verify_git_access
+
+  convert_git_remote_to_ssh "${HOME}/.bootstrap"
 
   local branch_or_tag="${BRANCH:-main}"
 
