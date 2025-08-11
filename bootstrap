@@ -186,13 +186,73 @@ verify_git_access() {
   fi
 }
 
+ensure_bootstrap_ssh_connectivity() {
+  echo "Ensuring Bootstrap repository uses SSH connectivity..."
+  
+  # Get current remote URL
+  local current_url
+  current_url=$(git remote get-url origin 2>/dev/null)
+  
+  if [[ -z "$current_url" ]]; then
+    echo "[✗] No origin remote found in Bootstrap repository"
+    return 1
+  fi
+  
+  echo "[i] Current Bootstrap remote: $current_url"
+  
+  # Check if already using SSH
+  if [[ "$current_url" =~ ^git@ ]]; then
+    echo "[✓] Bootstrap already using SSH: $current_url"
+    return 0
+  fi
+  
+  # Convert HTTPS to SSH based on the service detected
+  if [[ "$current_url" =~ ^https:// ]]; then
+    local ssh_url=""
+    
+    # Detect service and convert accordingly
+    if [[ "$current_url" =~ github\.com ]]; then
+      ssh_url=$(echo "$current_url" | sed 's|https://github\.com/|git@github.com:|')
+    elif [[ "$current_url" =~ git\.thesecretlab\.io ]]; then
+      ssh_url=$(echo "$current_url" | sed 's|https://git\.thesecretlab\.io/|git@git.thesecretlab.io:|')
+    elif [[ "$current_url" =~ gitlab\.com ]]; then
+      ssh_url=$(echo "$current_url" | sed 's|https://gitlab\.com/|git@gitlab.com:|')
+    else
+      echo "[✗] Unknown git service in URL: $current_url"
+      return 1
+    fi
+    
+    echo "[→] Converting Bootstrap remote to SSH: $ssh_url"
+    if git remote set-url origin "$ssh_url"; then
+      echo "[✓] Successfully updated Bootstrap remote to SSH"
+      
+      # Test SSH connectivity
+      if git fetch --quiet origin 2>/dev/null; then
+        echo "[✓] SSH connectivity test successful"
+        return 0
+      else
+        echo "[✗] SSH connectivity test failed - reverting"
+        git remote set-url origin "$current_url"
+        return 1
+      fi
+    else
+      echo "[✗] Failed to update remote URL"
+      return 1
+    fi
+  else
+    echo "[✗] Remote URL is not HTTPS: $current_url"
+    return 1
+  fi
+}
+
 install_dotfiles() {
   echo "Setting up .dotFiles..."
   install_homebrew
   install_zsh
   verify_git_access
 
-  convert_git_remote_to_ssh "${HOME}/.bootstrap"
+  # Ensure bootstrap repo uses SSH
+  ensure_bootstrap_ssh_connectivity
 
   local branch_or_tag="${BRANCH:-main}"
 
