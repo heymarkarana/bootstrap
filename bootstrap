@@ -166,6 +166,100 @@ install_zsh() {
   echo "ZSH ready."
 }
 
+# Optional: Install 1Password CLI for secret management
+setup_1password_optional() {
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         1Password CLI Setup (Optional)         "
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "1Password CLI can securely manage your secrets including:"
+  echo "  • API keys (Cloudflare, SMTP, etc.)"
+  echo "  • SSH keys by identity"
+  echo "  • Git-crypt keys"
+  echo ""
+  echo "If you skip this, you'll be prompted for secrets manually during"
+  echo "dotFiles installation."
+  echo ""
+
+  read -p "Install 1Password CLI? (y/N): " install_op
+
+  if [[ ! "$install_op" =~ ^[yY]$ ]]; then
+    echo "⊘ Skipping 1Password setup - will use manual entry for secrets"
+    return 0
+  fi
+
+  # Install op CLI if needed
+  if ! command -v op &>/dev/null; then
+    echo ""
+    echo "Installing 1Password CLI..."
+
+    if [[ "$DF_PLATFORM" == "macOS" ]]; then
+      if command -v brew &>/dev/null; then
+        if brew install --cask 1password-cli; then
+          echo "✅ 1Password CLI installed"
+        else
+          echo "⚠ Failed to install 1Password CLI"
+          return 1
+        fi
+      else
+        echo "⚠ Homebrew required for 1Password CLI installation"
+        return 1
+      fi
+    elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+      # Download and add 1Password GPG key
+      if curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+        sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg; then
+
+        # Add 1Password repository
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
+          sudo tee /etc/apt/sources.list.d/1password.list > /dev/null
+
+        # Update and install
+        if sudo apt update -q && sudo apt install -y 1password-cli; then
+          echo "✅ 1Password CLI installed"
+        else
+          echo "⚠ Failed to install 1Password CLI"
+          return 1
+        fi
+      else
+        echo "⚠ Failed to add 1Password GPG key"
+        return 1
+      fi
+    fi
+  else
+    echo "✓ 1Password CLI already installed"
+  fi
+
+  # Try to authenticate
+  echo ""
+  echo "Authenticating with 1Password..."
+  echo "You'll need your 1Password account credentials."
+  echo ""
+
+  if eval $(op signin 2>/dev/null); then
+    echo ""
+    echo "✅ 1Password authentication successful"
+    echo ""
+    echo "To enable SSH agent integration:"
+    if [[ "$DF_PLATFORM" == "macOS" ]]; then
+      echo "  1. Open 1Password"
+      echo "  2. Settings → Developer → Enable 'Use the SSH agent'"
+    elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+      echo "  • Use 1Password on your local machine to manage SSH keys"
+      echo "  • Or set up a service account token for headless operation"
+    fi
+    echo ""
+    return 0
+  else
+    echo ""
+    echo "⚠ 1Password authentication skipped"
+    echo "You can set it up later with: df 1password enable"
+    echo ""
+    return 1
+  fi
+}
+
 verify_git_access() {
   local host
   host=$(echo "$SELECTED_REPO" | sed -n 's#.*@\([^:]*\):.*#\1#p')
@@ -256,6 +350,7 @@ install_dotfiles() {
   echo "Setting up .dotFiles..."
   install_homebrew
   install_zsh
+  setup_1password_optional
   verify_git_access
 
   # Ensure bootstrap repo uses SSH
