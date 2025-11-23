@@ -1,0 +1,38 @@
+# Local configuration (contains repository URL)
+.bootstrap.config
+*.local
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# SSH keys (safety precaution)
+*.pem
+*.key
+id_*
+*.pub
+
+# 1Password session tokens
+.op_session
+.op_*
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# Backup files
+*.bak
+*.backup

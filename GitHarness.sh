@@ -74,7 +74,7 @@ echo
 echo "Select the service to add your SSH key:"
 echo "  1) GitHub"
 echo "  2) GitLab"
-echo "  3) Kuzcotopia GIT"
+echo "  3) Other Git Service"
 echo "  4) Skip"
 read -p "Enter your choice (1/2/3/4): " choice
 
@@ -82,7 +82,19 @@ url=""
 case "$choice" in
   1) url="https://github.com/settings/keys" ;;
   2) url="https://gitlab.com/profile/keys" ;;
-  3) url="http://git.thesecretlab.io/user/settings/keys" ;;
+  3)
+    echo ""
+    echo "Enter the URL to your Git service's SSH key settings page."
+    echo "Examples:"
+    echo "  • https://git.example.com/user/settings/keys"
+    echo "  • https://bitbucket.org/account/settings/ssh-keys/"
+    echo ""
+    read -p "URL: " url
+    if [[ -z "$url" ]]; then
+      echo "No URL provided. Skipping."
+      url=""
+    fi
+    ;;
   4) echo "Skipping service configuration." ;;
   *) echo "Invalid choice. Please manually add your SSH key to the appropriate service." ;;
 esac

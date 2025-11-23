@@ -15,19 +15,14 @@ fi
 ##               Project Settings                   ##
 #######################################################
 DF_PROJECT_NAME="dotFiles"
-REPO1="git@git.thesecretlab.io:marana/dotFiles.git"
-REPO1_NAME="Kuzcotopia"
-REPO2="git@github.com:heymarkarana/dotFiles.git"
-REPO2_NAME="GitHub"
-
 DF_INSTALL_FOLDER_NAME=".${DF_PROJECT_NAME}"
 
 BIN_NAME=$(basename "$0")
 COMMAND=$1
 BRANCH=$2
 
-DEFAULT_REPO="${REPO1}"
-SELECTED_REPO="${DEFAULT_REPO}"
+# Repository will be configured interactively or via environment variable
+SELECTED_REPO="${DOTFILES_REPO:-}"
 TARGET="${ORIGINAL_USER_HOME}/${DF_INSTALL_FOLDER_NAME}"
 
 # Detect OS platform and return one of: macOS, ubuntu
@@ -51,9 +46,68 @@ set_bootstrap_home() {
 DF_PLATFORM=$(detect_platform)
 DF_BOOTSTRAP_HOME=$(set_bootstrap_home)
 
+# Interactive repository configuration
+configure_repository() {
+  # Return if already configured via environment
+  if [[ -n "$SELECTED_REPO" ]]; then
+    echo "Using repository from environment: $SELECTED_REPO"
+    return 0
+  fi
+
+  # Check for config file
+  local config_file="${HOME}/.bootstrap.config"
+  if [[ -f "$config_file" ]]; then
+    source "$config_file"
+    if [[ -n "$DOTFILES_REPO" ]]; then
+      SELECTED_REPO="$DOTFILES_REPO"
+      echo "Using repository from config: $SELECTED_REPO"
+      return 0
+    fi
+  fi
+
+  # Interactive prompt
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         dotFiles Repository Configuration         "
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "Enter your dotFiles repository URL (SSH format recommended):"
+  echo ""
+  echo "Examples:"
+  echo "  • git@github.com:username/dotFiles.git"
+  echo "  • git@gitlab.com:username/dotFiles.git"
+  echo "  • git@your-server.com:username/dotFiles.git"
+  echo ""
+
+  read -p "Repository URL: " repo_url
+
+  if [[ -z "$repo_url" ]]; then
+    echo "Error: Repository URL is required"
+    return 1
+  fi
+
+  SELECTED_REPO="$repo_url"
+
+  # Offer to save configuration
+  echo ""
+  read -p "Save this configuration to ~/.bootstrap.config? (Y/n): " save_config
+
+  if [[ ! "$save_config" =~ ^[nN]$ ]]; then
+    cat > "$config_file" <<EOF
+# Bootstrap Configuration
+# This file is git-ignored and safe for local use
+DOTFILES_REPO="$repo_url"
+EOF
+    chmod 600 "$config_file"
+    echo "✓ Configuration saved to ~/.bootstrap.config"
+  fi
+
+  echo ""
+}
+
 show_help() {
   echo
-  echo "Usage: ${BIN_NAME} <command> [branch|tag] [options]"
+  echo "Usage: ${BIN_NAME} <command> [branch|tag]"
   echo
   echo "Commands:"
   echo "   install                     Set up .dotFiles from scratch. Installs ZSH and Homebrew if required."
@@ -62,21 +116,15 @@ show_help() {
   echo "   refresh <branch|tag>        Refresh and pull a specific branch or tag."
   echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes and reclones the repo."
   echo
-  echo "Options:"
-  echo "   --repo <repository>        Specify the repository to clone from."
+  echo "Configuration:"
+  echo "   Set DOTFILES_REPO environment variable:"
+  echo "     export DOTFILES_REPO='git@github.com:username/dotFiles.git'"
   echo
-}
-
-parse_arguments() {
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --repo)
-        SELECTED_REPO=$2
-        shift
-        ;;
-    esac
-    shift
-  done
+  echo "   Or create ~/.bootstrap.config with:"
+  echo "     DOTFILES_REPO='git@github.com:username/dotFiles.git'"
+  echo
+  echo "   Or use interactive prompts during installation."
+  echo
 }
 
 # Usage: convert_git_remote_to_ssh /path/to/repo git@yourdomain:username/repo.git
@@ -170,22 +218,55 @@ install_zsh() {
 setup_1password_optional() {
   echo ""
   echo "════════════════════════════════════════════════════════════════"
-  echo "         1Password CLI Setup (Optional)         "
+  echo "         1Password Setup (Optional)         "
   echo "════════════════════════════════════════════════════════════════"
   echo ""
-  echo "1Password CLI can securely manage your secrets including:"
+  echo "1Password provides secure secret management including:"
   echo "  • API keys (Cloudflare, SMTP, etc.)"
-  echo "  • SSH keys by identity"
+  echo "  • SSH keys with biometric unlock"
   echo "  • Git-crypt keys"
   echo ""
-  echo "If you skip this, you'll be prompted for secrets manually during"
-  echo "dotFiles installation."
-  echo ""
 
-  read -p "Install 1Password CLI? (y/N): " install_op
+  # Check if 1Password app is installed
+  local app_installed=false
+  if [[ "$DF_PLATFORM" == "macOS" ]]; then
+    if [[ -d "/Applications/1Password.app" ]]; then
+      app_installed=true
+      echo "✓ 1Password app detected"
+    fi
+  elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    if command -v 1password &>/dev/null; then
+      app_installed=true
+      echo "✓ 1Password app detected"
+    fi
+  fi
 
-  if [[ ! "$install_op" =~ ^[yY]$ ]]; then
-    echo "⊘ Skipping 1Password setup - will use manual entry for secrets"
+  if [[ "$app_installed" == "false" ]]; then
+    echo "⚠  1Password app NOT detected"
+    echo ""
+    echo "RECOMMENDED: Install 1Password app first for the best experience:"
+    echo "  • macOS: https://1password.com/downloads/mac/"
+    echo "  • Ubuntu: https://1password.com/downloads/linux/"
+    echo ""
+    echo "Benefits of having the app installed:"
+    echo "  • SSH keys with biometric unlock (Touch ID/Face ID)"
+    echo "  • Persistent authentication sessions"
+    echo "  • Better integration with system"
+    echo ""
+    read -p "Continue with CLI-only setup? (y/N): " continue_cli
+
+    if [[ ! "$continue_cli" =~ ^[yY]$ ]]; then
+      echo "⊘ Skipping 1Password setup"
+      echo "  Install the app and re-run: ./bootstrap install"
+      return 0
+    fi
+    echo ""
+  fi
+
+  read -p "Install 1Password CLI? (Y/n): " install_op
+
+  if [[ "$install_op" =~ ^[nN]$ ]]; then
+    echo "⊘ Skipping 1Password CLI - will use manual entry for secrets"
     return 0
   fi
 
@@ -307,21 +388,12 @@ ensure_bootstrap_ssh_connectivity() {
     return 0
   fi
   
-  # Convert HTTPS to SSH based on the service detected
+  # Convert HTTPS to SSH (generic pattern for any domain)
   if [[ "$current_url" =~ ^https:// ]]; then
-    local ssh_url=""
-    
-    # Detect service and convert accordingly
-    if [[ "$current_url" =~ github\.com ]]; then
-      ssh_url=$(echo "$current_url" | sed 's|https://github\.com/|git@github.com:|')
-    elif [[ "$current_url" =~ git\.thesecretlab\.io ]]; then
-      ssh_url=$(echo "$current_url" | sed 's|https://git\.thesecretlab\.io/|git@git.thesecretlab.io:|')
-    elif [[ "$current_url" =~ gitlab\.com ]]; then
-      ssh_url=$(echo "$current_url" | sed 's|https://gitlab\.com/|git@gitlab.com:|')
-    else
-      echo "[✗] Unknown git service in URL: $current_url"
-      return 1
-    fi
+    local ssh_url
+
+    # Generic HTTPS to SSH conversion: https://domain.com/user/repo → git@domain.com:user/repo
+    ssh_url=$(echo "$current_url" | sed -E 's|https://([^/]+)/|git@\1:|')
     
     echo "[→] Converting Bootstrap remote to SSH: $ssh_url"
     if git remote set-url origin "$ssh_url"; then
@@ -348,6 +420,10 @@ ensure_bootstrap_ssh_connectivity() {
 
 install_dotfiles() {
   echo "Setting up .dotFiles..."
+
+  # Configure repository first
+  configure_repository || return 1
+
   install_homebrew
   install_zsh
   setup_1password_optional
@@ -397,7 +473,6 @@ refresh_dotfiles() {
 }
 
 # Main logic
-parse_arguments "$@"
 case ${COMMAND} in
   "" | "-h" | "--help")
     show_help
