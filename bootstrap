@@ -437,7 +437,20 @@ install_dotfiles() {
   echo "Cloning from ${SELECTED_REPO}..."
   if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
     cd "${TARGET}" || exit 1
-    echo "dotFiles setup complete."
+    echo "dotFiles repository cloned successfully."
+    echo ""
+    echo "Starting dotFiles installation..."
+    echo ""
+
+    # Run the dotFiles installer (v4.0.0+)
+    # This will trigger the configuration interview if needed
+    if [[ -x "./bin/df" ]]; then
+      ./bin/df install
+    else
+      echo "Warning: df command not found. Manual setup required."
+      echo "Please run: cd ${TARGET} && ./bin/df install"
+    fi
+
     switch_to_zsh
   else
     echo "Git clone failed. Exiting."
