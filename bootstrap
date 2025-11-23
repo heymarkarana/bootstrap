@@ -71,12 +71,18 @@ configure_repository() {
   echo "         dotFiles Repository Configuration         "
   echo "════════════════════════════════════════════════════════════════"
   echo ""
-  echo "Enter your dotFiles repository URL (SSH format recommended):"
+  echo "Enter your dotFiles repository URL:"
   echo ""
-  echo "Examples:"
+  echo "HTTPS (recommended for initial setup - no SSH keys required):"
+  echo "  • https://github.com/username/dotFiles.git"
+  echo "  • https://gitlab.com/username/dotFiles.git"
+  echo "  • https://git.example.com/username/dotFiles.git"
+  echo ""
+  echo "SSH (requires SSH keys already configured):"
   echo "  • git@github.com:username/dotFiles.git"
   echo "  • git@gitlab.com:username/dotFiles.git"
-  echo "  • git@your-server.com:username/dotFiles.git"
+  echo ""
+  echo "Note: HTTPS URLs will be automatically converted to SSH after setup."
   echo ""
 
   read -p "Repository URL: " repo_url
@@ -118,12 +124,15 @@ show_help() {
   echo
   echo "Configuration:"
   echo "   Set DOTFILES_REPO environment variable:"
-  echo "     export DOTFILES_REPO='git@github.com:username/dotFiles.git'"
+  echo "     export DOTFILES_REPO='https://github.com/username/dotFiles.git'  # HTTPS (recommended)"
+  echo "     export DOTFILES_REPO='git@github.com:username/dotFiles.git'     # SSH (requires keys)"
   echo
   echo "   Or create ~/.bootstrap.config with:"
-  echo "     DOTFILES_REPO='git@github.com:username/dotFiles.git'"
+  echo "     DOTFILES_REPO='https://github.com/username/dotFiles.git'"
   echo
   echo "   Or use interactive prompts during installation."
+  echo
+  echo "   Note: HTTPS URLs will be automatically converted to SSH after setup."
   echo
 }
 
@@ -342,28 +351,47 @@ setup_1password_optional() {
 }
 
 verify_git_access() {
-  local host
-  host=$(echo "$SELECTED_REPO" | sed -n 's#.*@\([^:]*\):.*#\1#p')
+  # Detect URL type: SSH (git@...) or HTTPS (https://...)
+  if [[ "$SELECTED_REPO" =~ ^git@ ]]; then
+    # SSH format - verify SSH access
+    local host
+    host=$(echo "$SELECTED_REPO" | sed -n 's#.*@\([^:]*\):.*#\1#p')
 
-  if [[ -z "$host" ]]; then
-    echo "Could not parse SSH host from repository: $SELECTED_REPO"
-    return 1
-  fi
+    if [[ -z "$host" ]]; then
+      echo "Could not parse SSH host from repository: $SELECTED_REPO"
+      return 1
+    fi
 
-  echo "Verifying SSH access to ${host}..."
-  
-  # Add host key to known_hosts if not already present (silently)
-  if ! ssh-keygen -F "$host" >/dev/null 2>&1; then
-    echo "Adding ${host} to known_hosts..."
-    ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
-  fi
-  
-  if ssh -o BatchMode=yes -o StrictHostKeyChecking=no -T "git@${host}" 2>&1 | grep -qi "successfully authenticated"; then
-    echo "✅ SSH access to ${host} verified."
+    echo "Verifying SSH access to ${host}..."
+
+    # Add host key to known_hosts if not already present (silently)
+    if ! ssh-keygen -F "$host" >/dev/null 2>&1; then
+      echo "Adding ${host} to known_hosts..."
+      ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
+    fi
+
+    if ssh -o BatchMode=yes -o StrictHostKeyChecking=no -T "git@${host}" 2>&1 | grep -qi "successfully authenticated"; then
+      echo "✅ SSH access to ${host} verified."
+    else
+      echo "⚠️  SSH access to ${host} failed."
+      echo "SSH keys may not be configured yet. You can:"
+      echo "  1. Continue with HTTPS (will be converted to SSH later)"
+      echo "  2. Set up SSH keys first and retry"
+      echo ""
+      read -p "Continue anyway? (Y/n): " continue_choice
+      if [[ "$continue_choice" =~ ^[nN]$ ]]; then
+        exit 1
+      fi
+    fi
+  elif [[ "$SELECTED_REPO" =~ ^https?:// ]]; then
+    # HTTPS format - no SSH verification needed
+    echo "Using HTTPS clone (SSH keys not required yet)"
+    echo "✓ Repository URL accepted: $SELECTED_REPO"
   else
-    echo "❌ SSH access to ${host} failed."
-    echo "Make sure your SSH key is added to ${host} (e.g., GitHub or Forgejo)."
-    echo "You can manually test with: ssh -T git@${host}"
+    echo "❌ Unsupported repository URL format: $SELECTED_REPO"
+    echo "Please use either:"
+    echo "  • HTTPS: https://github.com/username/dotFiles.git"
+    echo "  • SSH:   git@github.com:username/dotFiles.git"
     exit 1
   fi
 }
@@ -438,6 +466,14 @@ install_dotfiles() {
   if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
     cd "${TARGET}" || exit 1
     echo "dotFiles repository cloned successfully."
+    echo ""
+
+    # Convert HTTPS to SSH if possible (after 1Password setup, SSH keys should be available)
+    if [[ "$SELECTED_REPO" =~ ^https?:// ]]; then
+      echo "Attempting to convert remote from HTTPS to SSH..."
+      convert_git_remote_to_ssh "${TARGET}" "${SELECTED_REPO}"
+    fi
+
     echo ""
     echo "Starting dotFiles installation..."
     echo ""
