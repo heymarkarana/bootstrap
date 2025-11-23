@@ -5,9 +5,10 @@ Minimal bootstrap script to prepare a fresh macOS or Ubuntu system for dotFiles 
 ## What it Does
 
 - Installs prerequisites (Homebrew, ZSH)
-- Generates SSH keys (if needed)
-- Optionally configures 1Password CLI
-- Clones and sets up your private dotFiles repository
+- Optionally configures 1Password CLI for SSH key management
+- Clones your dotFiles repository (HTTPS or SSH)
+- Automatically converts HTTPS → SSH after setup
+- Integrates with dotFiles v4.0.0 installer
 
 ## Quick Start
 
@@ -22,15 +23,16 @@ cd $HOME/.bootstrap
 
 # 3. Configure your dotFiles repository (one of these methods):
 
-# Method A: Environment variable
-export DOTFILES_REPO="git@github.com:yourusername/dotFiles.git"
+# Method A: Environment variable (HTTPS recommended for initial setup)
+export DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
 
 # Method B: Config file
 cat > ~/.bootstrap.config <<'EOF'
-DOTFILES_REPO="git@github.com:yourusername/dotFiles.git"
+DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
 EOF
 
 # Method C: Interactive prompt (will ask during installation)
+# Note: HTTPS URLs will be automatically converted to SSH after setup
 
 # 4. Run installation
 ./bootstrap install
@@ -44,7 +46,7 @@ The bootstrap script needs to know where your dotFiles repository is located. Yo
 
 **1. Environment Variable** (Recommended for automation)
 ```bash
-export DOTFILES_REPO="git@github.com:yourusername/dotFiles.git"
+export DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
 ./bootstrap install
 ```
 
@@ -52,7 +54,7 @@ export DOTFILES_REPO="git@github.com:yourusername/dotFiles.git"
 ```bash
 # Create ~/.bootstrap.config
 cat > ~/.bootstrap.config <<'EOF'
-DOTFILES_REPO="git@github.com:yourusername/dotFiles.git"
+DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
 EOF
 chmod 600 ~/.bootstrap.config
 
@@ -63,22 +65,31 @@ chmod 600 ~/.bootstrap.config
 ```bash
 # Bootstrap will prompt you for the repository URL
 ./bootstrap install
-# Enter: git@github.com:yourusername/dotFiles.git
+# Enter: https://github.com/yourusername/dotFiles.git
 # Save config? Y
 ```
 
 ### Supported Repository Formats
 
+Bootstrap supports both HTTPS and SSH URLs:
+
 ```bash
-# SSH (Recommended)
+# HTTPS (Recommended for initial setup - no SSH keys required)
+https://github.com/username/dotFiles.git
+https://gitlab.com/username/dotFiles.git
+https://git.example.com/username/dotFiles.git
+
+# SSH (Requires SSH keys already configured)
 git@github.com:username/dotFiles.git
 git@gitlab.com:username/dotFiles.git
 git@git.example.com:username/dotFiles.git
-
-# HTTPS (Will be converted to SSH)
-https://github.com/username/dotFiles.git
-https://gitlab.com/username/dotFiles.git
 ```
+
+**Why HTTPS for initial setup?**
+- No SSH keys required yet
+- Works immediately without authentication setup
+- Automatically converted to SSH after 1Password configures SSH keys
+- Future git operations use SSH with 1Password SSH agent
 
 ## Commands
 
@@ -105,10 +116,12 @@ Update existing dotFiles installation.
 1. **Repository Configuration** - Prompts for dotFiles repository URL (if not configured)
 2. **Homebrew** - Installs Homebrew (macOS only, if not present)
 3. **ZSH** - Installs and configures ZSH
-4. **SSH Keys** - Generates ed25519 key if needed, helps add to Git service
-5. **1Password** (Optional) - Installs CLI and authenticates
-6. **dotFiles** - Clones your dotFiles repository
-7. **Switch to ZSH** - Switches shell and continues in dotFiles
+4. **1Password** (Optional) - Installs CLI and configures SSH agent
+5. **Git Access Verification** - Verifies access (SSH) or accepts URL (HTTPS)
+6. **Clone dotFiles** - Clones your dotFiles repository
+7. **HTTPS → SSH Conversion** - Automatically converts HTTPS to SSH (if applicable)
+8. **Run dotFiles Installer** - Triggers `df install` for v4.0.0 configuration
+9. **Switch to ZSH** - Switches shell with dotFiles fully configured
 
 ## 1Password Integration (Optional)
 
@@ -134,17 +147,23 @@ Bootstrap will:
 4. Authenticate with your account
 5. Provide instructions for SSH agent setup
 
-## SSH Key Setup
+## SSH Key Management
 
-Bootstrap generates an ed25519 SSH key if you don't have one:
-- **Location:** `~/.ssh/id_ed25519`
-- **Format:** ed25519 (modern, secure)
-- **Helper:** Copies key to clipboard and opens Git service URL
+### Recommended: 1Password SSH Agent
 
-After generation, you can add the key to:
-1. GitHub
-2. GitLab
-3. Your custom Git server
+With 1Password installed, SSH keys are managed securely:
+- **Storage:** 1Password vault (not on disk)
+- **Authentication:** Biometric unlock (Touch ID/Face ID)
+- **Security:** Keys never written to filesystem
+- **Access:** Automatic via SSH agent
+
+### Alternative: HTTPS Clone
+
+If SSH keys aren't configured yet:
+- Use HTTPS URL for initial clone
+- No authentication required for public repos
+- Bootstrap automatically converts to SSH after setup
+- Future operations use 1Password SSH agent
 
 ## Requirements
 
@@ -163,28 +182,34 @@ After generation, you can add the key to:
 ```
 ~/.bootstrap/                   # This repository
   ├── bootstrap                 # Main script
-  ├── GitHarness.sh            # SSH key helper
+  ├── GitHarness.sh            # SSH key helper (optional)
   ├── LICENSE
   └── README.md
 
-~/.bootstrap.config             # Optional config (git-ignored)
-~/.ssh/id_ed25519              # SSH key (if generated)
-~/.ssh/id_ed25519.pub          # SSH public key
+~/.bootstrap.config             # Optional config (git-ignored, 600 permissions)
 ~/.dotFiles/                    # Your dotFiles (after installation)
+~/.config/dotFiles/             # dotFiles v4.0.0 configuration
+  └── local.config              # Created by df config configure
 ```
+
+**Note:** SSH keys are managed by 1Password (not stored in ~/.ssh)
 
 ## Troubleshooting
 
 ### SSH Authentication Failed
 
 ```bash
-# Test SSH connection
+# Option 1: Use HTTPS instead (recommended for initial setup)
+export DOTFILES_REPO="https://github.com/username/dotFiles.git"
+./bootstrap install
+
+# Option 2: Verify SSH connectivity
 ssh -T git@github.com
 # or
 ssh -T git@gitlab.com
 
-# Re-add SSH key if needed
-ssh-add ~/.ssh/id_ed25519
+# Option 3: Check 1Password SSH agent
+# Settings → Developer → Enable "Use the SSH agent"
 ```
 
 ### 1Password CLI Not Authenticating
@@ -240,11 +265,13 @@ This bootstrap is designed to be safely shared publicly:
 
 ```bash
 # Set all configuration via environment
-export DOTFILES_REPO="git@github.com:username/dotFiles.git"
-export SKIP_1PASSWORD=true  # Skip 1Password setup
+export DOTFILES_REPO="https://github.com/username/dotFiles.git"
+export SKIP_1PASSWORD=true  # Skip 1Password setup (optional)
 
 # Run automated installation
 ./bootstrap install
+
+# HTTPS will be automatically converted to SSH after setup
 ```
 
 ### Custom Branch
@@ -264,11 +291,14 @@ Use the same `.bootstrap.config` across machines:
 ```bash
 # On first machine
 cat ~/.bootstrap.config
-# DOTFILES_REPO="git@github.com:username/dotFiles.git"
+# DOTFILES_REPO="https://github.com/username/dotFiles.git"
 
 # On second machine
-# Create same config file, then:
+# Copy config file, then:
+scp first-machine:~/.bootstrap.config ~/
 ./bootstrap install
+
+# Each machine will convert HTTPS → SSH independently
 ```
 
 ## Credits

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- HTTPS URL support for initial repository cloning
+- Automatic HTTPS → SSH conversion after successful setup
+- Smart URL detection in `verify_git_access()`
+  - HTTPS URLs: Skip SSH verification
+  - SSH URLs: Verify but allow continuing on failure
+- Integration with dotFiles v4.0.0 installer
+  - Automatically runs `df install` after cloning
+  - Triggers interactive configuration interview on first run
+
+### Changed
+- **Repository configuration now recommends HTTPS for initial setup**
+  - HTTPS works without SSH keys configured
+  - SSH keys managed by 1Password after setup
+  - Automatic conversion to SSH for future operations
+- Updated `verify_git_access()` to support both HTTPS and SSH
+  - HTTPS: No SSH verification required
+  - SSH: Verification optional (can continue on failure)
+- Updated prompts and help text to show HTTPS examples first
+- Installation flow now includes automatic `df install` execution
+- README.md completely updated with HTTPS-first approach
+
+### Fixed
+- Chicken-and-egg problem where SSH keys weren't available during bootstrap
+- Clone failures when 1Password SSH agent not configured yet
+- Better error messages when SSH verification fails
+
+### Documentation
+- Updated all examples to use HTTPS URLs
+- Added explanation of automatic HTTPS → SSH conversion
+- Updated installation flow with new steps
+- Clarified 1Password SSH agent integration
+- Removed references to manual SSH key generation
+
 ## [2.0.0] - 2025-11-23
 
 ### Added
