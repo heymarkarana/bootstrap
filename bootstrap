@@ -121,6 +121,7 @@ show_help() {
   echo "   refresh                     Refresh the existing .dotFiles repository."
   echo "   refresh <branch|tag>        Refresh and pull a specific branch or tag."
   echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes and reclones the repo."
+  echo "   1password-reauth            Re-authenticate to 1Password when session expires."
   echo
   echo "Configuration:"
   echo "   Set DOTFILES_REPO environment variable:"
@@ -305,6 +306,15 @@ setup_1password_optional() {
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
           sudo tee /etc/apt/sources.list.d/1password.list > /dev/null
 
+        # Add debsig-verify policy for package verification
+        echo "Setting up package verification..."
+        sudo mkdir -p /etc/debsig/policies/AC2D62742012EA22/
+        curl -sS https://downloads.1password.com/linux/debian/debsig/1password.pol | \
+          sudo tee /etc/debsig/policies/AC2D62742012EA22/1password.pol > /dev/null
+        sudo mkdir -p /usr/share/debsig/keyrings/AC2D62742012EA22
+        curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+          sudo gpg --dearmor --output /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
+
         # Update and install
         if sudo apt update -q && sudo apt install -y 1password-cli; then
           echo "✅ 1Password CLI installed"
@@ -321,32 +331,156 @@ setup_1password_optional() {
     echo "✓ 1Password CLI already installed"
   fi
 
-  # Try to authenticate
+  # Try to authenticate - platform-specific flows
   echo ""
-  echo "Authenticating with 1Password..."
-  echo "You'll need your 1Password account credentials."
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         1Password Authentication         "
+  echo "════════════════════════════════════════════════════════════════"
   echo ""
 
-  if eval $(op signin 2>/dev/null); then
+  # Check if already signed in
+  if op account list &>/dev/null; then
+    echo "✓ Already signed in to 1Password"
+    echo ""
+    op account list
     echo ""
     echo "✅ 1Password authentication successful"
     echo ""
-    echo "To enable SSH agent integration:"
     if [[ "$DF_PLATFORM" == "macOS" ]]; then
+      echo "To enable SSH agent integration:"
       echo "  1. Open 1Password"
       echo "  2. Settings → Developer → Enable 'Use the SSH agent'"
-    elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
-      echo "  • Use 1Password on your local machine to manage SSH keys"
-      echo "  • Or set up a service account token for headless operation"
+      echo ""
     fi
-    echo ""
     return 0
-  else
+  fi
+
+  # Platform-specific authentication flows
+  if [[ "$DF_PLATFORM" == "macOS" ]]; then
+    # macOS: Use desktop app for authentication
+    echo "On macOS, 1Password CLI integrates with the desktop app."
     echo ""
-    echo "⚠ 1Password authentication skipped"
-    echo "You can set it up later with: df 1password enable"
+    if [[ "$app_installed" == "true" ]]; then
+      echo "To complete setup:"
+      echo "  1. Open the 1Password desktop app"
+      echo "  2. Sign in to your account"
+      echo "  3. The CLI will automatically connect to the app"
+      echo ""
+      echo "After signing in to the app, test with: op account list"
+      echo ""
+      echo "To enable SSH agent integration:"
+      echo "  1. Open 1Password"
+      echo "  2. Settings → Developer → Enable 'Use the SSH agent'"
+      echo ""
+    else
+      echo "⚠  1Password desktop app not found"
+      echo ""
+      echo "Please install the app first:"
+      echo "  https://1password.com/downloads/mac/"
+      echo ""
+      echo "The CLI requires the desktop app on macOS for the best experience."
+      echo ""
+    fi
+    return 0
+
+  elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    # Ubuntu: CLI-only authentication
+    echo "On Ubuntu, you'll use CLI-only authentication."
     echo ""
+    echo "You'll need:"
+    echo "  • Sign-in address (e.g., my.1password.com)"
+    echo "  • Email address"
+    echo "  • Secret Key"
+    echo "  • Master Password"
+    echo ""
+    read -p "Add 1Password account now? (Y/n): " add_account
+
+    if [[ "$add_account" =~ ^[nN]$ ]]; then
+      echo ""
+      echo "⊘ Skipping 1Password authentication"
+      echo "You can set it up later with: op account add"
+      echo ""
+      return 1
+    fi
+
+    echo ""
+    echo "Adding 1Password account..."
+    echo ""
+
+    if op account add; then
+      echo ""
+      echo "✅ 1Password authentication successful"
+      echo ""
+      echo "Session Management:"
+      echo "  • CLI sessions expire after inactivity"
+      echo "  • To re-authenticate when session expires:"
+      echo "    eval \$(op signin)"
+      echo ""
+      echo "  • Check if authenticated:"
+      echo "    op account list"
+      echo ""
+      echo "Note: On headless servers, you may want to use:"
+      echo "  • Service account tokens for automation"
+      echo "  • Biometric unlock is not available in CLI-only mode"
+      echo ""
+      return 0
+    else
+      echo ""
+      echo "⚠ 1Password authentication failed"
+      echo "You can set it up later with: op account add"
+      echo ""
+      return 1
+    fi
+  fi
+}
+
+# Re-authenticate to 1Password if session has expired
+reauthenticate_1password() {
+  # Check if 1Password CLI is installed
+  if ! command -v op &>/dev/null; then
+    echo "⚠ 1Password CLI not installed"
     return 1
+  fi
+
+  # Check if already authenticated
+  if op account list &>/dev/null 2>&1; then
+    echo "✓ Already authenticated to 1Password"
+    return 0
+  fi
+
+  # Need to re-authenticate
+  echo "1Password session has expired. Re-authenticating..."
+  echo ""
+
+  if [[ "$DF_PLATFORM" == "macOS" ]]; then
+    echo "On macOS, unlock the 1Password desktop app to restore CLI access."
+    echo ""
+    read -p "Press Enter after unlocking 1Password app..."
+
+    if op account list &>/dev/null 2>&1; then
+      echo "✅ Re-authentication successful"
+      return 0
+    else
+      echo "⚠ Still not authenticated. Make sure 1Password app is unlocked."
+      return 1
+    fi
+
+  elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    echo "Run this command to re-authenticate:"
+    echo "  eval \$(op signin)"
+    echo ""
+
+    # Try to sign in
+    if eval $(op signin); then
+      echo ""
+      echo "✅ Re-authentication successful"
+      return 0
+    else
+      echo ""
+      echo "⚠ Re-authentication failed"
+      echo "If you need to add the account again: op account add"
+      return 1
+    fi
   fi
 }
 
@@ -446,8 +580,131 @@ ensure_bootstrap_ssh_connectivity() {
   fi
 }
 
+complete_bootstrap_and_offer_dotfiles_install() {
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║              Bootstrap Setup Complete!                       ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "Bootstrap components installed:"
+  if [[ "$DF_PLATFORM" == "macOS" ]]; then
+    echo "  ✓ Homebrew (if needed)"
+  fi
+  echo "  ✓ ZSH"
+  if command -v op &>/dev/null; then
+    echo "  ✓ 1Password CLI"
+  fi
+  echo ""
+  echo "dotFiles is already present at: ${TARGET}"
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "Next step: Run dotFiles installation"
+  echo ""
+  echo "Options:"
+  echo "  1. Run dotFiles installation now"
+  echo "  2. Exit (install later manually)"
+  echo ""
+  read -p "Choose option (1/2): " run_dotfiles
+
+  case "$run_dotfiles" in
+    1)
+      # Check if dotFiles directory exists and has install script
+      if [[ ! -x "${TARGET}/install/install.zsh" ]]; then
+        echo ""
+        echo "⚠ dotFiles appears incomplete (missing install/install.zsh)"
+        echo "Please run: cd ${TARGET} && git pull"
+        return 1
+      fi
+
+      echo ""
+      echo "════════════════════════════════════════════════════════════════"
+      echo "         Starting dotFiles Installation         "
+      echo "════════════════════════════════════════════════════════════════"
+      echo ""
+
+      cd "${TARGET}" || return 1
+
+      # Run the install script directly (not through df wrapper which requires env)
+      if [[ -x "./install/install.zsh" ]]; then
+        ./install/install.zsh
+      else
+        echo "⚠ Install script not found at ${TARGET}/install/install.zsh"
+        return 1
+      fi
+
+      switch_to_zsh
+      ;;
+    2|*)
+      echo ""
+      echo "Bootstrap complete!"
+      echo ""
+      echo "To install dotFiles later, run:"
+      echo "  cd ${TARGET} && ./install/install.zsh"
+      echo ""
+      return 0
+      ;;
+  esac
+}
+
 install_dotfiles() {
   echo "Setting up .dotFiles..."
+
+  # Check if dotFiles already exists
+  if [[ -d "${TARGET}" ]]; then
+    echo ""
+    echo "════════════════════════════════════════════════════════════════"
+    echo "         dotFiles Already Installed         "
+    echo "════════════════════════════════════════════════════════════════"
+    echo ""
+    echo "dotFiles is already installed at: ${TARGET}"
+    echo ""
+    echo "Options:"
+    echo "  1. Skip dotFiles installation and continue with bootstrap setup"
+    echo "  2. Refresh dotFiles (delete and re-download)"
+    echo "  3. Exit"
+    echo ""
+    read -p "Choose option (1/2/3): " dotfiles_choice
+
+    case "$dotfiles_choice" in
+      1)
+        echo ""
+        echo "Skipping dotFiles clone..."
+        echo "Continuing with bootstrap setup..."
+        echo ""
+        install_homebrew
+        install_zsh
+        setup_1password_optional
+
+        # Bootstrap complete - offer to run dotFiles install
+        complete_bootstrap_and_offer_dotfiles_install
+        return 0
+        ;;
+      2)
+        echo ""
+        echo "Refreshing dotFiles (this will delete and re-download)..."
+        echo ""
+        read -p "Are you sure? This will delete ${TARGET} (y/N): " confirm_delete
+        if [[ ! "$confirm_delete" =~ ^[yY]$ ]]; then
+          echo "Refresh cancelled. Exiting."
+          exit 0
+        fi
+        echo "Deleting ${TARGET}..."
+        rm -rf "${TARGET}"
+        echo "✓ Deleted"
+        echo ""
+        # Fall through to normal installation
+        ;;
+      3)
+        echo "Exiting."
+        exit 0
+        ;;
+      *)
+        echo "Invalid choice. Exiting."
+        exit 1
+        ;;
+    esac
+  fi
 
   # Configure repository first
   configure_repository || return 1
@@ -465,7 +722,7 @@ install_dotfiles() {
   echo "Cloning from ${SELECTED_REPO}..."
   if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
     cd "${TARGET}" || exit 1
-    echo "dotFiles repository cloned successfully."
+    echo "✓ dotFiles repository cloned successfully."
     echo ""
 
     # Convert HTTPS to SSH if possible (after 1Password setup, SSH keys should be available)
@@ -475,16 +732,31 @@ install_dotfiles() {
     fi
 
     echo ""
-    echo "Starting dotFiles installation..."
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║              Bootstrap Setup Complete!                       ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Bootstrap components installed:"
+    if [[ "$DF_PLATFORM" == "macOS" ]]; then
+      echo "  ✓ Homebrew"
+    fi
+    echo "  ✓ ZSH"
+    if command -v op &>/dev/null; then
+      echo "  ✓ 1Password CLI"
+    fi
+    echo "  ✓ dotFiles repository cloned"
+    echo ""
+    echo "════════════════════════════════════════════════════════════════"
+    echo "         Starting dotFiles Installation         "
+    echo "════════════════════════════════════════════════════════════════"
     echo ""
 
-    # Run the dotFiles installer (v4.0.0+)
-    # This will trigger the configuration interview if needed
-    if [[ -x "./bin/df" ]]; then
-      ./bin/df install
+    # Run the dotFiles install script directly (not through df wrapper which requires env)
+    if [[ -x "./install/install.zsh" ]]; then
+      ./install/install.zsh
     else
-      echo "Warning: df command not found. Manual setup required."
-      echo "Please run: cd ${TARGET} && ./bin/df install"
+      echo "Warning: Install script not found. Manual setup required."
+      echo "Please run: cd ${TARGET} && ./install/install.zsh"
     fi
 
     switch_to_zsh
@@ -537,6 +809,9 @@ case ${COMMAND} in
     ;;
   refresh)
     refresh_dotfiles "$2"
+    ;;
+  1password-reauth | reauth-1password | op-reauth)
+    reauthenticate_1password
     ;;
   *)
     echo "Unknown command: ${COMMAND}" >&2

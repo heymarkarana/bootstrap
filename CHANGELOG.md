@@ -41,6 +41,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified 1Password SSH agent integration
 - Removed references to manual SSH key generation
 
+## [2.1.0] - 2025-12-07
+
+### Added
+- **1Password re-authentication command** - New `bootstrap 1password-reauth` command
+  - Re-authenticates when 1Password session expires
+  - Platform-specific handling for macOS and Ubuntu
+  - Aliases: `reauth-1password`, `op-reauth`
+- **1Password package verification** - Added debsig-verify policy for secure package installation
+  - Verifies package signatures during apt installation
+  - Sets up proper keyrings and policies automatically
+- **dotFiles already-installed detection** - Smart handling when dotFiles exists
+  - Offers to skip, refresh, or exit
+  - Prevents accidental overwrites
+  - Streamlined workflow for re-running bootstrap
+
+### Changed
+- **Improved 1Password authentication flow** - Platform-specific authentication
+  - macOS: Guides users to desktop app integration
+  - Ubuntu: CLI-only authentication with `op account add`
+  - Better error messages and session management guidance
+- **Enhanced installation messaging** - Professional formatting with box drawings
+  - Clear component completion indicators
+  - Better visual separation of installation stages
+  - Improved user experience during setup
+- **Direct install.zsh execution** - Calls install script directly instead of through df wrapper
+  - Works before df.env is created
+  - More reliable during initial bootstrap
+
+### Fixed
+- Authentication state detection - Now properly checks if already signed in before prompting
+- Session expiration handling - Clear instructions for re-authentication on both platforms
+
 ## [2.0.0] - 2025-11-23
 
 ### Added
