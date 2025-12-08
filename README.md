@@ -7,7 +7,7 @@ Minimal bootstrap script to prepare a fresh macOS or Ubuntu system for dotFiles 
 - Installs prerequisites (Homebrew, ZSH)
 - Optionally configures 1Password CLI for SSH key management
 - Clones your dotFiles repository (HTTPS or SSH)
-- Automatically converts HTTPS → SSH after setup
+- Respects your chosen protocol (HTTPS or SSH)
 - Integrates with dotFiles v4.0.0 installer
 
 ## Quick Start
@@ -32,7 +32,6 @@ DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
 EOF
 
 # Method C: Interactive prompt (will ask during installation)
-# Note: HTTPS URLs will be automatically converted to SSH after setup
 
 # 4. Run installation
 ./bootstrap install
@@ -80,16 +79,16 @@ https://gitlab.com/username/dotFiles.git
 https://git.example.com/username/dotFiles.git
 
 # SSH (Requires SSH keys already configured)
-git@github.com:username/dotFiles.git
-git@gitlab.com:username/dotFiles.git
-git@git.example.com:username/dotFiles.git
+ssh://git@github.com/username/dotFiles.git
+ssh://git@gitlab.com/username/dotFiles.git
+git@github.com:username/dotFiles.git  # Traditional format also supported
 ```
 
 **Why HTTPS for initial setup?**
 - No SSH keys required yet
 - Works immediately without authentication setup
-- Automatically converted to SSH after 1Password configures SSH keys
-- Future git operations use SSH with 1Password SSH agent
+- Use your preferred protocol - both work equally well
+- Optional: Convert to SSH later if needed
 
 ## Commands
 
@@ -116,54 +115,59 @@ Update existing dotFiles installation.
 1. **Repository Configuration** - Prompts for dotFiles repository URL (if not configured)
 2. **Homebrew** - Installs Homebrew (macOS only, if not present)
 3. **ZSH** - Installs and configures ZSH
-4. **1Password** (Optional) - Installs CLI and configures SSH agent
+4. **1Password** (Optional) - Installs CLI for secret management
 5. **Git Access Verification** - Verifies access (SSH) or accepts URL (HTTPS)
 6. **Clone dotFiles** - Clones your dotFiles repository
-7. **HTTPS → SSH Conversion** - Automatically converts HTTPS to SSH (if applicable)
-8. **Run dotFiles Installer** - Triggers `df install` for v4.0.0 configuration
-9. **Switch to ZSH** - Switches shell with dotFiles fully configured
+7. **Run dotFiles Installer** - Triggers `df install` for v4.0.0 configuration
+8. **Switch to ZSH** - Switches shell with dotFiles fully configured
 
 ## 1Password Integration (Optional)
 
 Bootstrap can optionally set up 1Password CLI for secure secret management.
 
-### Prerequisites
+### CLI-Only Mode
 
-**For best experience:** Install the 1Password app BEFORE running bootstrap
-- **macOS:** https://1password.com/downloads/mac/
-- **Ubuntu:** https://1password.com/downloads/linux/
+The 1Password CLI works standalone without requiring the desktop app.
 
-**Benefits:**
-- SSH keys with biometric unlock (Touch ID/Face ID)
-- Persistent authentication sessions
-- Better system integration
+**During Installation:**
+1. Installs 1Password CLI (`op`)
+2. Authenticates using `op account add` (requires Secret Key + Master Password)
+3. Works identically on macOS and Ubuntu
+4. Full functionality over SSH and remote terminals
 
-### During Installation
+**Optional Desktop App Features:**
+- GUI password management
+- SSH agent with biometric unlock (macOS only - Touch ID/Face ID)
 
-Bootstrap will:
-1. Detect if 1Password app is installed
-2. Warn if app is missing (but allow CLI-only setup)
-3. Install 1Password CLI
-4. Authenticate with your account
-5. Provide instructions for SSH agent setup
+**To install desktop app later (optional):**
+- macOS: https://1password.com/downloads/mac/
+- Ubuntu: https://1password.com/downloads/linux/
 
 ## SSH Key Management
 
-### Recommended: 1Password SSH Agent
+### Option 1: 1Password SSH Agent (Optional)
 
-With 1Password installed, SSH keys are managed securely:
+With 1Password desktop app + SSH agent enabled:
 - **Storage:** 1Password vault (not on disk)
-- **Authentication:** Biometric unlock (Touch ID/Face ID)
+- **Authentication:** Biometric unlock (Touch ID/Face ID on macOS)
 - **Security:** Keys never written to filesystem
 - **Access:** Automatic via SSH agent
 
-### Alternative: HTTPS Clone
+Enable in 1Password: Settings → Developer → "Use the SSH agent"
 
-If SSH keys aren't configured yet:
-- Use HTTPS URL for initial clone
+### Option 2: Traditional SSH Keys
+
+Generate and use standard SSH keys:
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
+
+### Option 3: HTTPS (No SSH Keys Required)
+
+Use HTTPS URLs - works without any SSH configuration:
 - No authentication required for public repos
-- Bootstrap automatically converts to SSH after setup
-- Future operations use 1Password SSH agent
+- Personal Access Token for private repos
+- Works identically on all platforms
 
 ## Requirements
 
@@ -192,7 +196,7 @@ If SSH keys aren't configured yet:
   └── local.config              # Created by df config configure
 ```
 
-**Note:** SSH keys are managed by 1Password (not stored in ~/.ssh)
+**Note:** SSH keys can be managed by 1Password (optional) or stored traditionally in ~/.ssh
 
 ## Troubleshooting
 
@@ -208,18 +212,21 @@ ssh -T git@github.com
 # or
 ssh -T git@gitlab.com
 
-# Option 3: Check 1Password SSH agent
-# Settings → Developer → Enable "Use the SSH agent"
+# Option 3: Check 1Password SSH agent (if using desktop app)
+# macOS: 1Password → Settings → Developer → Enable "Use the SSH agent"
 ```
 
 ### 1Password CLI Not Authenticating
 
 ```bash
-# Sign in manually
+# Re-authenticate with CLI
 eval $(op signin)
 
+# Or add account again
+op account add
+
 # Verify authentication
-op whoami
+op account list
 ```
 
 ### Repository Clone Failed
@@ -270,8 +277,6 @@ export SKIP_1PASSWORD=true  # Skip 1Password setup (optional)
 
 # Run automated installation
 ./bootstrap install
-
-# HTTPS will be automatically converted to SSH after setup
 ```
 
 ### Custom Branch
@@ -297,8 +302,6 @@ cat ~/.bootstrap.config
 # Copy config file, then:
 scp first-machine:~/.bootstrap.config ~/
 ./bootstrap install
-
-# Each machine will convert HTTPS → SSH independently
 ```
 
 ## Credits
