@@ -252,24 +252,17 @@ setup_1password_optional() {
   fi
 
   if [[ "$app_installed" == "false" ]]; then
-    echo "⚠  1Password app NOT detected"
+    echo "ℹ  1Password app NOT detected"
     echo ""
-    echo "RECOMMENDED: Install 1Password app first for the best experience:"
+    echo "The CLI works standalone - the desktop app is optional."
+    echo ""
+    echo "Optional desktop app features (macOS only):"
+    echo "  • SSH agent with biometric unlock (Touch ID/Face ID)"
+    echo "  • GUI for managing passwords"
+    echo ""
+    echo "To install later (optional):"
     echo "  • macOS: https://1password.com/downloads/mac/"
     echo "  • Ubuntu: https://1password.com/downloads/linux/"
-    echo ""
-    echo "Benefits of having the app installed:"
-    echo "  • SSH keys with biometric unlock (Touch ID/Face ID)"
-    echo "  • Persistent authentication sessions"
-    echo "  • Better integration with system"
-    echo ""
-    read -p "Continue with CLI-only setup? (y/N): " continue_cli
-
-    if [[ ! "$continue_cli" =~ ^[yY]$ ]]; then
-      echo "⊘ Skipping 1Password setup"
-      echo "  Install the app and re-run: ./bootstrap install"
-      return 0
-    fi
     echo ""
   fi
 
@@ -355,82 +348,61 @@ setup_1password_optional() {
     return 0
   fi
 
-  # Platform-specific authentication flows
-  if [[ "$DF_PLATFORM" == "macOS" ]]; then
-    # macOS: Use desktop app for authentication
-    echo "On macOS, 1Password CLI integrates with the desktop app."
+  # Unified CLI-only authentication for both platforms
+  # Works over SSH and remote terminals, no GUI required
+  echo "Using CLI-only authentication (works locally and over SSH)."
+  echo ""
+  echo "You'll need:"
+  echo "  • Sign-in address (e.g., my.1password.com)"
+  echo "  • Email address"
+  echo "  • Secret Key"
+  echo "  • Master Password"
+  echo ""
+
+  # Note about optional desktop app features
+  if [[ "$app_installed" == "true" && "$DF_PLATFORM" == "macOS" ]]; then
+    echo "Note: Desktop app detected - you can optionally enable:"
+    echo "  • SSH agent integration (Settings → Developer → Use SSH agent)"
+    echo "  • Biometric unlock for GUI features"
     echo ""
-    if [[ "$app_installed" == "true" ]]; then
-      echo "To complete setup:"
-      echo "  1. Open the 1Password desktop app"
-      echo "  2. Sign in to your account"
-      echo "  3. The CLI will automatically connect to the app"
-      echo ""
-      echo "After signing in to the app, test with: op account list"
-      echo ""
-      echo "To enable SSH agent integration:"
-      echo "  1. Open 1Password"
-      echo "  2. Settings → Developer → Enable 'Use the SSH agent'"
-      echo ""
-    else
-      echo "⚠  1Password desktop app not found"
-      echo ""
-      echo "Please install the app first:"
-      echo "  https://1password.com/downloads/mac/"
-      echo ""
-      echo "The CLI requires the desktop app on macOS for the best experience."
-      echo ""
-    fi
+  fi
+
+  read -p "Add 1Password account now? (Y/n): " add_account
+
+  if [[ "$add_account" =~ ^[nN]$ ]]; then
+    echo ""
+    echo "⊘ Skipping 1Password authentication"
+    echo "You can set it up later with: op account add"
+    echo ""
+    return 1
+  fi
+
+  echo ""
+  echo "Adding 1Password account..."
+  echo ""
+
+  if op account add; then
+    echo ""
+    echo "✅ 1Password CLI authentication successful"
+    echo ""
+    echo "Session Management:"
+    echo "  • CLI sessions expire after inactivity"
+    echo "  • To re-authenticate when session expires:"
+    echo "    eval \$(op signin)"
+    echo ""
+    echo "  • Check if authenticated:"
+    echo "    op account list"
+    echo ""
+    echo "  • For automation (CI/CD, cron jobs):"
+    echo "    Use service account tokens: https://developer.1password.com/docs/service-accounts"
+    echo ""
     return 0
-
-  elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
-    # Ubuntu: CLI-only authentication
-    echo "On Ubuntu, you'll use CLI-only authentication."
+  else
     echo ""
-    echo "You'll need:"
-    echo "  • Sign-in address (e.g., my.1password.com)"
-    echo "  • Email address"
-    echo "  • Secret Key"
-    echo "  • Master Password"
+    echo "⚠ 1Password authentication failed"
+    echo "You can set it up later with: op account add"
     echo ""
-    read -p "Add 1Password account now? (Y/n): " add_account
-
-    if [[ "$add_account" =~ ^[nN]$ ]]; then
-      echo ""
-      echo "⊘ Skipping 1Password authentication"
-      echo "You can set it up later with: op account add"
-      echo ""
-      return 1
-    fi
-
-    echo ""
-    echo "Adding 1Password account..."
-    echo ""
-
-    if op account add; then
-      echo ""
-      echo "✅ 1Password authentication successful"
-      echo ""
-      echo "Session Management:"
-      echo "  • CLI sessions expire after inactivity"
-      echo "  • To re-authenticate when session expires:"
-      echo "    eval \$(op signin)"
-      echo ""
-      echo "  • Check if authenticated:"
-      echo "    op account list"
-      echo ""
-      echo "Note: On headless servers, you may want to use:"
-      echo "  • Service account tokens for automation"
-      echo "  • Biometric unlock is not available in CLI-only mode"
-      echo ""
-      return 0
-    else
-      echo ""
-      echo "⚠ 1Password authentication failed"
-      echo "You can set it up later with: op account add"
-      echo ""
-      return 1
-    fi
+    return 1
   fi
 }
 
@@ -448,39 +420,22 @@ reauthenticate_1password() {
     return 0
   fi
 
-  # Need to re-authenticate
+  # Need to re-authenticate using CLI
   echo "1Password session has expired. Re-authenticating..."
   echo ""
+  echo "Signing in with CLI (enter your Master Password)..."
+  echo ""
 
-  if [[ "$DF_PLATFORM" == "macOS" ]]; then
-    echo "On macOS, unlock the 1Password desktop app to restore CLI access."
+  # Unified CLI signin for both platforms
+  if eval $(op signin); then
     echo ""
-    read -p "Press Enter after unlocking 1Password app..."
-
-    if op account list &>/dev/null 2>&1; then
-      echo "✅ Re-authentication successful"
-      return 0
-    else
-      echo "⚠ Still not authenticated. Make sure 1Password app is unlocked."
-      return 1
-    fi
-
-  elif [[ "$DF_PLATFORM" == "ubuntu" ]]; then
-    echo "Run this command to re-authenticate:"
-    echo "  eval \$(op signin)"
+    echo "✅ Re-authentication successful"
+    return 0
+  else
     echo ""
-
-    # Try to sign in
-    if eval $(op signin); then
-      echo ""
-      echo "✅ Re-authentication successful"
-      return 0
-    else
-      echo ""
-      echo "⚠ Re-authentication failed"
-      echo "If you need to add the account again: op account add"
-      return 1
-    fi
+    echo "⚠ Re-authentication failed"
+    echo "If you need to add the account again: op account add"
+    return 1
   fi
 }
 
