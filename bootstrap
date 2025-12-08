@@ -79,10 +79,11 @@ configure_repository() {
   echo "  • https://git.example.com/username/dotFiles.git"
   echo ""
   echo "SSH (requires SSH keys already configured):"
-  echo "  • git@github.com:username/dotFiles.git"
-  echo "  • git@gitlab.com:username/dotFiles.git"
+  echo "  • ssh://git@github.com/username/dotFiles.git"
+  echo "  • ssh://git@gitlab.com/username/dotFiles.git"
+  echo "  • git@github.com:username/dotFiles.git (traditional format also supported)"
   echo ""
-  echo "Note: HTTPS URLs will be automatically converted to SSH after setup."
+  echo "Note: You can use either HTTPS or SSH based on your preference."
   echo ""
 
   read -p "Repository URL: " repo_url
@@ -125,15 +126,16 @@ show_help() {
   echo
   echo "Configuration:"
   echo "   Set DOTFILES_REPO environment variable:"
-  echo "     export DOTFILES_REPO='https://github.com/username/dotFiles.git'  # HTTPS (recommended)"
-  echo "     export DOTFILES_REPO='git@github.com:username/dotFiles.git'     # SSH (requires keys)"
+  echo "     export DOTFILES_REPO='https://github.com/username/dotFiles.git'      # HTTPS (recommended)"
+  echo "     export DOTFILES_REPO='ssh://git@github.com/username/dotFiles.git'    # SSH (requires keys)"
+  echo "     export DOTFILES_REPO='git@github.com:username/dotFiles.git'          # SSH traditional format"
   echo
   echo "   Or create ~/.bootstrap.config with:"
   echo "     DOTFILES_REPO='https://github.com/username/dotFiles.git'"
   echo
   echo "   Or use interactive prompts during installation."
   echo
-  echo "   Note: HTTPS URLs will be automatically converted to SSH after setup."
+  echo "   Note: Both HTTPS and SSH formats are supported. Use your preference."
   echo
 }
 
@@ -151,16 +153,14 @@ convert_git_remote_to_ssh() {
   # Derive SSH URL from provided HTTP(S) URL if given
   if [[ -n "$remote_url" ]]; then
     if [[ "$remote_url" =~ ^https?:// ]]; then
-      local stripped_url="${remote_url#http://}"
-      stripped_url="${stripped_url#https://}"
-      remote_url="git@${stripped_url//\//:}"
+      # Convert http(s)://domain.com/user/repo to ssh://git@domain.com/user/repo
+      remote_url=$(echo "$remote_url" | sed -E 's|^https?://|ssh://git@|')
     fi
   else
     remote_url=$(git -C "$repo_path" remote get-url origin)
     if [[ "$remote_url" =~ ^https?:// ]]; then
-      local stripped_url="${remote_url#http://}"
-      stripped_url="${stripped_url#https://}"
-      remote_url="git@${stripped_url//\//:}"
+      # Convert http(s)://domain.com/user/repo to ssh://git@domain.com/user/repo
+      remote_url=$(echo "$remote_url" | sed -E 's|^https?://|ssh://git@|')
     else
       echo "[i] Remote is already using SSH: $remote_url"
       return 0
@@ -485,11 +485,19 @@ reauthenticate_1password() {
 }
 
 verify_git_access() {
-  # Detect URL type: SSH (git@...) or HTTPS (https://...)
-  if [[ "$SELECTED_REPO" =~ ^git@ ]]; then
+  # Detect URL type: SSH (git@... or ssh://git@...) or HTTPS (https://...)
+  if [[ "$SELECTED_REPO" =~ ^(git@|ssh://) ]]; then
     # SSH format - verify SSH access
     local host
-    host=$(echo "$SELECTED_REPO" | sed -n 's#.*@\([^:]*\):.*#\1#p')
+
+    # Handle both ssh://git@host/path and git@host:path formats
+    if [[ "$SELECTED_REPO" =~ ^ssh:// ]]; then
+      # Extract host from ssh://git@host/path format
+      host=$(echo "$SELECTED_REPO" | sed -n 's#^ssh://git@\([^/]*\)/.*#\1#p')
+    else
+      # Extract host from git@host:path format
+      host=$(echo "$SELECTED_REPO" | sed -n 's#^git@\([^:]*\):.*#\1#p')
+    fi
 
     if [[ -z "$host" ]]; then
       echo "Could not parse SSH host from repository: $SELECTED_REPO"
@@ -525,7 +533,8 @@ verify_git_access() {
     echo "❌ Unsupported repository URL format: $SELECTED_REPO"
     echo "Please use either:"
     echo "  • HTTPS: https://github.com/username/dotFiles.git"
-    echo "  • SSH:   git@github.com:username/dotFiles.git"
+    echo "  • SSH:   ssh://git@github.com/username/dotFiles.git"
+    echo "  • SSH:   git@github.com:username/dotFiles.git (traditional format)"
     exit 1
   fi
 }
@@ -543,20 +552,20 @@ ensure_bootstrap_ssh_connectivity() {
   fi
   
   echo "[i] Current Bootstrap remote: $current_url"
-  
-  # Check if already using SSH
-  if [[ "$current_url" =~ ^git@ ]]; then
+
+  # Check if already using SSH (both ssh:// and git@ formats)
+  if [[ "$current_url" =~ ^(git@|ssh://) ]]; then
     echo "[✓] Bootstrap already using SSH: $current_url"
     return 0
   fi
-  
-  # Convert HTTPS to SSH (generic pattern for any domain)
-  if [[ "$current_url" =~ ^https:// ]]; then
+
+  # Convert HTTP/HTTPS to SSH (generic pattern for any domain)
+  if [[ "$current_url" =~ ^https?:// ]]; then
     local ssh_url
 
-    # Generic HTTPS to SSH conversion: https://domain.com/user/repo → git@domain.com:user/repo
-    ssh_url=$(echo "$current_url" | sed -E 's|https://([^/]+)/|git@\1:|')
-    
+    # Generic HTTP/HTTPS to SSH conversion: http(s)://domain.com/user/repo → ssh://git@domain.com/user/repo
+    ssh_url=$(echo "$current_url" | sed -E 's|^https?://|ssh://git@|')
+
     echo "[→] Converting Bootstrap remote to SSH: $ssh_url"
     if git remote set-url origin "$ssh_url"; then
       echo "[✓] Successfully updated Bootstrap remote to SSH"
@@ -714,8 +723,9 @@ install_dotfiles() {
   setup_1password_optional
   verify_git_access
 
-  # Ensure bootstrap repo uses SSH
-  ensure_bootstrap_ssh_connectivity
+  # Optional: Ensure bootstrap repo uses SSH (only if user wants auto-conversion)
+  # Uncomment the next line if you want to force SSH for bootstrap repo
+  # ensure_bootstrap_ssh_connectivity
 
   local branch_or_tag="${BRANCH:-main}"
 
@@ -725,11 +735,12 @@ install_dotfiles() {
     echo "✓ dotFiles repository cloned successfully."
     echo ""
 
-    # Convert HTTPS to SSH if possible (after 1Password setup, SSH keys should be available)
-    if [[ "$SELECTED_REPO" =~ ^https?:// ]]; then
-      echo "Attempting to convert remote from HTTPS to SSH..."
-      convert_git_remote_to_ssh "${TARGET}" "${SELECTED_REPO}"
-    fi
+    # Optional: Convert HTTPS to SSH (only if user wants auto-conversion)
+    # Uncomment the lines below if you want to automatically convert HTTPS to SSH
+    # if [[ "$SELECTED_REPO" =~ ^https?:// ]]; then
+    #   echo "Attempting to convert remote from HTTPS to SSH..."
+    #   convert_git_remote_to_ssh "${TARGET}" "${SELECTED_REPO}"
+    # fi
 
     echo ""
     echo "╔══════════════════════════════════════════════════════════════╗"
