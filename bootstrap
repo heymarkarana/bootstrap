@@ -591,7 +591,8 @@ complete_bootstrap_and_offer_dotfiles_install() {
 
       # Run the install script directly (not through df wrapper which requires env)
       if [[ -x "./install/install.zsh" ]]; then
-        ./install/install.zsh
+        # Explicitly pass current environment to ensure PATH is preserved
+        env PATH="$PATH" ./install/install.zsh
       else
         echo "⚠ Install script not found at ${TARGET}/install/install.zsh"
         return 1
@@ -719,7 +720,8 @@ install_dotfiles() {
 
     # Run the dotFiles install script directly (not through df wrapper which requires env)
     if [[ -x "./install/install.zsh" ]]; then
-      ./install/install.zsh
+      # Explicitly pass current environment to ensure PATH is preserved
+      env PATH="$PATH" ./install/install.zsh
     else
       echo "Warning: Install script not found. Manual setup required."
       echo "Please run: cd ${TARGET} && ./install/install.zsh"
