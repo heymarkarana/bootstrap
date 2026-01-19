@@ -213,6 +213,49 @@ install_homebrew() {
   fi
 }
 
+install_tui_dependencies() {
+  echo "Installing TUI dependencies (gum, fzf)..."
+  
+  if [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    # Install fzf
+    if ! command -v fzf &>/dev/null; then
+      echo "  Installing fzf..."
+      sudo apt install -y fzf
+    else
+      echo "  ✓ fzf already installed"
+    fi
+    
+    # Install gum
+    if ! command -v gum &>/dev/null; then
+      echo "  Installing gum..."
+      # gum requires adding charm repo on Ubuntu
+      sudo mkdir -p /etc/apt/keyrings
+      curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+      echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list
+      sudo apt update && sudo apt install -y gum
+    else
+      echo "  ✓ gum already installed"
+    fi
+  elif [[ "$DF_PLATFORM" == "macOS" ]]; then
+    # macOS installs via Homebrew
+    if ! command -v fzf &>/dev/null; then
+      echo "  Installing fzf..."
+      brew install fzf
+    else
+      echo "  ✓ fzf already installed"
+    fi
+    
+    if ! command -v gum &>/dev/null; then
+      echo "  Installing gum..."
+      brew install gum
+    else
+      echo "  ✓ gum already installed"
+    fi
+  fi
+  
+  echo "TUI dependencies ready."
+}
+
 install_zsh() {
   if ! command -v zsh &>/dev/null; then
     echo "Installing ZSH..."
@@ -639,6 +682,7 @@ install_dotfiles() {
         echo ""
         install_homebrew
         install_zsh
+        install_tui_dependencies
         setup_1password_optional
 
         # Bootstrap complete - offer to run dotFiles install
@@ -676,6 +720,7 @@ install_dotfiles() {
 
   install_homebrew
   install_zsh
+  install_tui_dependencies
   setup_1password_optional
   verify_git_access
 
