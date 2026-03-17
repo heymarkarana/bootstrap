@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-03-16
+
 ### Added
+- **kgroup infrastructure setup** - Automatic creation of kgroup and registry infrastructure
+  - New `setup_kgroup_infrastructure()` function for system-level group management
+  - Creates kgroup on both macOS (dseditgroup) and Ubuntu (groupadd)
+  - Adds current user and root to kgroup automatically
+  - Creates `/opt/.config/dotFiles/` registry directory with proper permissions
+  - Sets ownership to `root:kgroup` with 2775 permissions (setgid + group writable)
+  - Immediately sets kgroup ownership on dotFiles after git clone
+  - Configures group read+execute permissions on all dotFiles directories and scripts
+  - Multi-user ready from bootstrap completion
 - HTTPS URL support for initial repository cloning
 - Automatic HTTPS → SSH conversion after successful setup
 - Smart URL detection in `verify_git_access()`
@@ -18,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Triggers interactive configuration interview on first run
 
 ### Changed
+- **Bootstrap completion message** - Now displays kgroup and registry infrastructure status
 - **Repository configuration now recommends HTTPS for initial setup**
   - HTTPS works without SSH keys configured
   - SSH keys managed by 1Password after setup

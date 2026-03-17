@@ -267,6 +267,92 @@ install_zsh() {
   echo "ZSH ready."
 }
 
+# Create kgroup and dotFiles registry infrastructure
+setup_kgroup_infrastructure() {
+  local GROUP_NAME="kgroup"
+  local REGISTRY_DIR="/opt/.config/dotFiles"
+  local CURRENT_USER
+
+  # Determine current user (handle sudo)
+  if [[ -n "$SUDO_USER" ]]; then
+    CURRENT_USER="$SUDO_USER"
+  else
+    CURRENT_USER="$(whoami)"
+  fi
+
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         Setting Up kgroup Infrastructure         "
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+
+  # Create kgroup based on platform
+  if [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    # Ubuntu: use groupadd
+    if ! getent group "$GROUP_NAME" >/dev/null 2>&1; then
+      echo "Creating group: $GROUP_NAME"
+      sudo groupadd "$GROUP_NAME"
+      echo "✓ Group created"
+    else
+      echo "✓ Group already exists: $GROUP_NAME"
+    fi
+
+    # Add current user to kgroup
+    if ! groups "$CURRENT_USER" | grep -qw "$GROUP_NAME"; then
+      echo "Adding $CURRENT_USER to $GROUP_NAME"
+      sudo usermod -aG "$GROUP_NAME" "$CURRENT_USER"
+      echo "✓ User added to group"
+    else
+      echo "✓ $CURRENT_USER already in $GROUP_NAME"
+    fi
+
+    # Add root to kgroup
+    sudo usermod -aG "$GROUP_NAME" root 2>/dev/null || true
+
+  elif [[ "$DF_PLATFORM" == "macOS" ]]; then
+    # macOS: use dseditgroup
+    if ! dscl . -read /Groups/"$GROUP_NAME" &>/dev/null; then
+      echo "Creating group: $GROUP_NAME"
+      sudo dseditgroup -o create "$GROUP_NAME"
+      echo "✓ Group created"
+    else
+      echo "✓ Group already exists: $GROUP_NAME"
+    fi
+
+    # Add current user to kgroup
+    if ! dscl . -read /Groups/"$GROUP_NAME" GroupMembership 2>/dev/null | grep -qw "$CURRENT_USER"; then
+      echo "Adding $CURRENT_USER to $GROUP_NAME"
+      sudo dseditgroup -o edit -a "$CURRENT_USER" -t user "$GROUP_NAME"
+      echo "✓ User added to group"
+    else
+      echo "✓ $CURRENT_USER already in $GROUP_NAME"
+    fi
+
+    # Add root to kgroup
+    sudo dseditgroup -o edit -a root -t user "$GROUP_NAME" 2>/dev/null || true
+  fi
+
+  # Create registry directory infrastructure
+  echo ""
+  echo "Creating dotFiles registry infrastructure..."
+
+  if [[ ! -d "$REGISTRY_DIR" ]]; then
+    sudo mkdir -p "$REGISTRY_DIR"
+    echo "✓ Created: $REGISTRY_DIR"
+  else
+    echo "✓ Registry directory already exists"
+  fi
+
+  # Set ownership and permissions
+  sudo chown root:"$GROUP_NAME" "$REGISTRY_DIR"
+  sudo chmod 2775 "$REGISTRY_DIR"  # setgid bit + group writable
+
+  echo "✓ Permissions configured (root:$GROUP_NAME, 2775)"
+  echo ""
+  echo "kgroup infrastructure ready!"
+  echo ""
+}
+
 # Optional: Install 1Password CLI for secret management
 setup_1password_optional() {
   echo ""
@@ -722,6 +808,7 @@ install_dotfiles() {
   install_zsh
   install_tui_dependencies
   setup_1password_optional
+  setup_kgroup_infrastructure
   verify_git_access
 
   # Optional: Ensure bootstrap repo uses SSH (only if user wants auto-conversion)
@@ -734,6 +821,19 @@ install_dotfiles() {
   if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
     cd "${TARGET}" || exit 1
     echo "✓ dotFiles repository cloned successfully."
+    echo ""
+
+    # Set kgroup ownership immediately after clone
+    echo "Setting group ownership to kgroup..."
+    if sudo chgrp -R kgroup "${TARGET}"; then
+      # Set group read+execute permissions
+      sudo find "${TARGET}" -type d -exec chmod g+rx {} \; 2>/dev/null
+      sudo find "${TARGET}" -type f \( -name "*.zsh" -o -name "*.sh" \) -exec chmod g+rx {} \; 2>/dev/null
+      sudo find "${TARGET}" -type f ! \( -name "*.zsh" -o -name "*.sh" \) -exec chmod g+r {} \; 2>/dev/null
+      echo "✓ Group permissions configured (kgroup)"
+    else
+      echo "⚠ Could not set group ownership (non-critical, can run 'df heal' later)"
+    fi
     echo ""
 
     # Optional: Convert HTTPS to SSH (only if user wants auto-conversion)
@@ -756,7 +856,9 @@ install_dotfiles() {
     if command -v op &>/dev/null; then
       echo "  ✓ 1Password CLI"
     fi
-    echo "  ✓ dotFiles repository cloned"
+    echo "  ✓ kgroup (shared utilities group)"
+    echo "  ✓ dotFiles registry infrastructure"
+    echo "  ✓ dotFiles repository cloned (kgroup permissions set)"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
     echo "         Starting dotFiles Installation         "
