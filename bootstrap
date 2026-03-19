@@ -623,18 +623,140 @@ verify_git_access() {
   fi
 }
 
+# Install or update Trove utilities library
+install_trove() {
+  local TROVE_HOME="/opt/trove"
+  local TROVE_REPO="${DF_TROVE_REPO:-ssh://git@git.thesecretlab.io/marana/trove.git}"
+  local TROVE_DEV_PATH="${HOME}/Sourcecode/thesecretlab/trove"
+  local CURRENT_USER
+
+  # Determine current user (handle sudo)
+  if [[ -n "$SUDO_USER" ]]; then
+    CURRENT_USER="$SUDO_USER"
+  else
+    CURRENT_USER="$(whoami)"
+  fi
+
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         Setting Up Trove Utilities Library         "
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+
+  # Check if already installed (update if exists)
+  if [[ -d "${TROVE_HOME}/.git" ]]; then
+    echo "Trove already installed. Checking for updates..."
+    if (cd "${TROVE_HOME}" && sudo git pull --quiet 2>/dev/null); then
+      echo "✓ Trove updated successfully"
+    else
+      echo "⚠ Could not update Trove, continuing with existing version"
+    fi
+    echo ""
+    return 0
+  fi
+
+  echo "Installing Trove utilities library..."
+  echo ""
+
+  # Ensure parent directory exists
+  if [[ ! -d "/opt" ]]; then
+    echo "Creating /opt directory..."
+    sudo mkdir -p /opt || {
+      echo "✗ ERROR: Cannot create /opt directory"
+      return 1
+    }
+  fi
+
+  # Development mode: symlink if local dev copy exists
+  if [[ -d "${TROVE_DEV_PATH}/.git" ]]; then
+    echo "→ Development mode detected"
+    echo "  Symlinking from: ${TROVE_DEV_PATH}"
+    echo ""
+
+    if sudo ln -sf "${TROVE_DEV_PATH}" "${TROVE_HOME}"; then
+      echo "✓ Trove symlinked from development copy"
+    else
+      echo "✗ ERROR: Failed to create symlink"
+      echo "  Please check permissions on /opt"
+      return 1
+    fi
+  else
+    # Production mode: clone from repository
+    echo "→ Cloning Trove from repository"
+    echo "  Repository: ${TROVE_REPO}"
+    echo ""
+
+    if sudo git clone --quiet "${TROVE_REPO}" "${TROVE_HOME}" 2>/dev/null; then
+      echo "✓ Trove cloned successfully"
+    else
+      echo ""
+      echo "✗ ERROR: Failed to clone Trove repository"
+      echo ""
+      echo "This likely means SSH access is not configured yet."
+      echo ""
+      echo "Options to resolve:"
+      echo "  1. Set up SSH keys and retry"
+      echo "  2. Use HTTPS temporarily:"
+      echo "     export DF_TROVE_REPO='https://git.thesecretlab.io/marana/trove.git'"
+      echo "  3. Install manually after bootstrap:"
+      echo "     sudo git clone <repo-url> ${TROVE_HOME}"
+      echo ""
+      return 1
+    fi
+  fi
+
+  # Set ownership to current user and kgroup
+  echo ""
+  echo "Setting ownership and permissions..."
+
+  if [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    # Linux: check if kgroup exists
+    if getent group kgroup &>/dev/null; then
+      sudo chown -R "${CURRENT_USER}:kgroup" "${TROVE_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:kgroup"
+    else
+      sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "${TROVE_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:${CURRENT_USER}"
+    fi
+  elif [[ "$DF_PLATFORM" == "macOS" ]]; then
+    # macOS: check if kgroup exists
+    if dscl . -read /Groups/kgroup &>/dev/null 2>&1; then
+      sudo chown -R "${CURRENT_USER}:kgroup" "${TROVE_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:kgroup"
+    else
+      sudo chown -R "${CURRENT_USER}:staff" "${TROVE_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:staff"
+    fi
+  fi
+
+  # Verify installation
+  if [[ -f "${TROVE_HOME}/lib/trove_logging.zsh" ]]; then
+    echo "✓ Trove installation verified"
+    echo ""
+    echo "Trove utilities library ready!"
+    echo ""
+    return 0
+  else
+    echo ""
+    echo "✗ ERROR: Trove installation incomplete"
+    echo "  Missing: ${TROVE_HOME}/lib/trove_logging.zsh"
+    echo ""
+    return 1
+  fi
+}
+
 ensure_bootstrap_ssh_connectivity() {
   echo "Ensuring Bootstrap repository uses SSH connectivity..."
-  
+
   # Get current remote URL
   local current_url
   current_url=$(git remote get-url origin 2>/dev/null)
-  
+
   if [[ -z "$current_url" ]]; then
     echo "[✗] No origin remote found in Bootstrap repository"
     return 1
   fi
-  
+
   echo "[i] Current Bootstrap remote: $current_url"
 
   # Check if already using SSH (both ssh:// and git@ formats)
@@ -809,6 +931,7 @@ install_dotfiles() {
   install_tui_dependencies
   setup_1password_optional
   setup_kgroup_infrastructure
+  install_trove
   verify_git_access
 
   # Optional: Ensure bootstrap repo uses SSH (only if user wants auto-conversion)
