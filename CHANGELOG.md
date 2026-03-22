@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No security compromises: SSH keys never passed to sudo
   - Automatic cleanup on failure
   - Clear error messages for each failure scenario
+- **Beskar verification file** - Fixed incorrect verification check
+  - Changed from `beskar_crypto.zsh` (doesn't exist) to `beskar_core.zsh` (actual file)
 
 ### Changed
 - Updated error messages to reflect new clone-then-move approach
@@ -31,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Beskar security library installation** - New `install_beskar()` function for security utilities
   - Repository: `ssh://git@git.thesecretlab.io/marana/beskar.git`
   - Install location: `/opt/beskar`
-  - Verification file: `/opt/beskar/lib/beskar_crypto.zsh`
+  - Verification file: `/opt/beskar/lib/beskar_core.zsh`
   - Development mode support from `~/Sourcecode/thesecretlab/beskar`
   - Full error handling with SSH setup instructions
   - Follows same pattern as Trove installation for consistency

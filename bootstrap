@@ -949,10 +949,10 @@ install_beskar() {
     fi
 
     # Verify installation is still valid after update
-    if [[ ! -f "${BESKAR_HOME}/lib/beskar_crypto.zsh" ]]; then
+    if [[ ! -f "${BESKAR_HOME}/lib/beskar_core.zsh" ]]; then
       echo ""
       echo "✗ ERROR: Beskar installation corrupted after update"
-      echo "  Missing: ${BESKAR_HOME}/lib/beskar_crypto.zsh"
+      echo "  Missing: ${BESKAR_HOME}/lib/beskar_core.zsh"
       echo ""
       echo "Run: sudo rm -rf ${BESKAR_HOME} && ./bootstrap install"
       echo ""
@@ -984,9 +984,9 @@ install_beskar() {
     echo ""
 
     # Verify dev copy has required files
-    if [[ ! -f "${BESKAR_DEV_PATH}/lib/beskar_crypto.zsh" ]]; then
+    if [[ ! -f "${BESKAR_DEV_PATH}/lib/beskar_core.zsh" ]]; then
       echo "✗ ERROR: Development copy appears incomplete"
-      echo "  Missing: ${BESKAR_DEV_PATH}/lib/beskar_crypto.zsh"
+      echo "  Missing: ${BESKAR_DEV_PATH}/lib/beskar_core.zsh"
       echo "  Please ensure dev repository is properly cloned"
       return 1
     fi
@@ -1053,7 +1053,7 @@ install_beskar() {
   fi
 
   # Verify installation
-  if [[ -f "${BESKAR_HOME}/lib/beskar_crypto.zsh" ]]; then
+  if [[ -f "${BESKAR_HOME}/lib/beskar_core.zsh" ]]; then
     echo "✓ Beskar installation verified"
     echo ""
     echo "Beskar security library ready!"
@@ -1062,7 +1062,7 @@ install_beskar() {
   else
     echo ""
     echo "✗ ERROR: Beskar installation incomplete"
-    echo "  Missing: ${BESKAR_HOME}/lib/beskar_crypto.zsh"
+    echo "  Missing: ${BESKAR_HOME}/lib/beskar_core.zsh"
     echo ""
     echo "This indicates the repository may not have the expected structure."
     echo "Please verify the repository contents and try again."
