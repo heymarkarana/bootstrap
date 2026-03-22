@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-03-22
+
+### Fixed
+- **SSH authentication with sudo git operations** - Resolved "Permission denied (publickey)" errors
+  - Issue: `sudo git clone` and `sudo git pull` failed because root doesn't have user's SSH keys
+  - Solution: Clone as user in temporary location, then move to /opt with sudo
+  - New helper functions: `clone_repo_as_user_to_opt()` and `update_repo_as_user()`
+  - Affects: Trove installation (line 834), Trove updates (line 755)
+  - Affects: Beskar installation (line 1008), Beskar updates (line 929)
+  - Benefits: Works with SSH keys, SSH agent, 1Password, and HTTPS
+  - No security compromises: SSH keys never passed to sudo
+  - Automatic cleanup on failure
+  - Clear error messages for each failure scenario
+
+### Changed
+- Updated error messages to reflect new clone-then-move approach
+- Manual installation instructions now suggest the correct method
+
 ## [2.1.2] - 2026-03-22
 
 ### Added
