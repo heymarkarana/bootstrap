@@ -368,10 +368,9 @@ install_zsh() {
   echo "ZSH ready."
 }
 
-# Create kgroup and dotFiles registry infrastructure
+# Create kgroup (central registry will be created by Trove install)
 setup_kgroup_infrastructure() {
   local GROUP_NAME="kgroup"
-  local REGISTRY_DIR="/opt/.config/dotFiles"
   local CURRENT_USER
 
   # Determine current user (handle sudo)
@@ -433,24 +432,9 @@ setup_kgroup_infrastructure() {
     sudo dseditgroup -o edit -a root -t user "$GROUP_NAME" 2>/dev/null || true
   fi
 
-  # Create registry directory infrastructure
   echo ""
-  echo "Creating dotFiles registry infrastructure..."
-
-  if [[ ! -d "$REGISTRY_DIR" ]]; then
-    sudo mkdir -p "$REGISTRY_DIR"
-    echo "✓ Created: $REGISTRY_DIR"
-  else
-    echo "✓ Registry directory already exists"
-  fi
-
-  # Set ownership and permissions
-  sudo chown root:"$GROUP_NAME" "$REGISTRY_DIR"
-  sudo chmod 2775 "$REGISTRY_DIR"  # setgid bit + group writable
-
-  echo "✓ Permissions configured (root:$GROUP_NAME, 2775)"
-  echo ""
-  echo "kgroup infrastructure ready!"
+  echo "✓ kgroup infrastructure ready!"
+  echo "  (Central registry will be created by Trove installation)"
   echo ""
 }
 
@@ -881,9 +865,38 @@ install_trove() {
   # Verify installation
   if [[ -f "${TROVE_HOME}/lib/trove_logging.zsh" ]]; then
     echo "✓ Trove installation verified"
-    echo ""
-    echo "Trove utilities library ready!"
-    echo ""
+  else
+    echo "✗ ERROR: Trove installation corrupted"
+    echo "  Missing: ${TROVE_HOME}/lib/trove_logging.zsh"
+    return 1
+  fi
+
+  # Run Trove's install script to set up central registry
+  echo ""
+  echo "Running Trove installer (creates central registry at /opt/.config/kapps/)..."
+
+  if [[ -x "${TROVE_HOME}/install" ]]; then
+    cd "${TROVE_HOME}" || return 1
+
+    # Run install script non-interactively
+    if sudo -E ./install </dev/null; then
+      echo "✓ Trove install script completed"
+      echo "  - Created /opt/.config/kapps/ (central registry)"
+      echo "  - Installed locations.zsh library"
+      echo "  - Registered Trove in central registry"
+    else
+      echo "⚠ Warning: Trove install script failed (non-fatal)"
+      echo "  Registry may need manual setup"
+    fi
+
+    cd - > /dev/null || true
+  else
+    echo "⚠ Warning: Trove install script not found or not executable"
+  fi
+
+  echo ""
+  echo "Trove utilities library ready!"
+  echo ""
     return 0
   else
     echo ""
@@ -1053,13 +1066,7 @@ install_beskar() {
   fi
 
   # Verify installation
-  if [[ -f "${BESKAR_HOME}/lib/beskar_core.zsh" ]]; then
-    echo "✓ Beskar installation verified"
-    echo ""
-    echo "Beskar security library ready!"
-    echo ""
-    return 0
-  else
+  if [[ ! -f "${BESKAR_HOME}/lib/beskar_core.zsh" ]]; then
     echo ""
     echo "✗ ERROR: Beskar installation incomplete"
     echo "  Missing: ${BESKAR_HOME}/lib/beskar_core.zsh"
@@ -1069,6 +1076,34 @@ install_beskar() {
     echo ""
     return 1
   fi
+
+  echo "✓ Beskar installation verified"
+  echo ""
+
+  # Run Beskar's install script to initialize armory
+  echo "Running Beskar install script..."
+  if [[ -x "${BESKAR_HOME}/install" ]]; then
+    cd "${BESKAR_HOME}" || return 1
+
+    # Run install script non-interactively
+    if sudo -E ./install </dev/null; then
+      echo "✓ Beskar install script completed"
+      echo "  - Armory initialized"
+    else
+      echo "⚠ Warning: Beskar install script failed, but core files are present"
+      echo "  You may need to run: cd ${BESKAR_HOME} && sudo ./install"
+    fi
+
+    cd - >/dev/null || true
+  else
+    echo "⚠ Warning: Install script not found at ${BESKAR_HOME}/install"
+    echo "  Beskar may need manual initialization: beskar init"
+  fi
+
+  echo ""
+  echo "Beskar security library ready!"
+  echo ""
+  return 0
 }
 
 ensure_bootstrap_ssh_connectivity() {
@@ -1330,7 +1365,7 @@ install_dotfiles() {
     echo "  ✓ kgroup (shared utilities group)"
     echo "  ✓ Trove utilities library"
     echo "  ✓ Beskar security library"
-    echo "  ✓ dotFiles registry infrastructure"
+    echo "  ✓ Central registry (/opt/.config/kapps/)"
     echo "  ✓ dotFiles repository cloned (kgroup permissions set)"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
