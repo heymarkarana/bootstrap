@@ -897,17 +897,7 @@ install_trove() {
   echo ""
   echo "Trove utilities library ready!"
   echo ""
-    return 0
-  else
-    echo ""
-    echo "✗ ERROR: Trove installation incomplete"
-    echo "  Missing: ${TROVE_HOME}/lib/trove_logging.zsh"
-    echo ""
-    echo "This indicates the repository may not have the expected structure."
-    echo "Please verify the repository contents and try again."
-    echo ""
-    return 1
-  fi
+  return 0
 }
 
 # Install or update Beskar security utilities library
