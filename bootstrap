@@ -646,11 +646,47 @@ install_trove() {
   # Check if already installed (update if exists)
   if [[ -d "${TROVE_HOME}/.git" ]]; then
     echo "Trove already installed. Checking for updates..."
-    if (cd "${TROVE_HOME}" && sudo git pull --quiet 2>/dev/null); then
-      echo "✓ Trove updated successfully"
+
+    # Store current commit for comparison
+    local current_commit
+    current_commit=$(cd "${TROVE_HOME}" && git rev-parse HEAD 2>/dev/null)
+
+    # Attempt to pull updates with proper error handling
+    echo "  Pulling latest changes..."
+    if (cd "${TROVE_HOME}" && sudo git pull 2>&1 | tee /dev/tty | grep -q "Already up to date\|Updating"); then
+      local new_commit
+      new_commit=$(cd "${TROVE_HOME}" && git rev-parse HEAD 2>/dev/null)
+
+      if [[ "$current_commit" == "$new_commit" ]]; then
+        echo "✓ Trove already up to date"
+      else
+        echo "✓ Trove updated successfully (${current_commit:0:8} → ${new_commit:0:8})"
+      fi
     else
-      echo "⚠ Could not update Trove, continuing with existing version"
+      echo ""
+      echo "✗ ERROR: Failed to update Trove"
+      echo "  Current installation may be corrupted or repository unreachable"
+      echo ""
+      echo "Options to resolve:"
+      echo "  1. Check SSH access: ssh -T git@git.thesecretlab.io"
+      echo "  2. Remove and reinstall: sudo rm -rf ${TROVE_HOME} && ./bootstrap install"
+      echo "  3. Use development mode: link from ~/Sourcecode/thesecretlab/trove"
+      echo ""
+      return 1
     fi
+
+    # Verify installation is still valid after update
+    if [[ ! -f "${TROVE_HOME}/lib/trove_logging.zsh" ]]; then
+      echo ""
+      echo "✗ ERROR: Trove installation corrupted after update"
+      echo "  Missing: ${TROVE_HOME}/lib/trove_logging.zsh"
+      echo ""
+      echo "Run: sudo rm -rf ${TROVE_HOME} && ./bootstrap install"
+      echo ""
+      return 1
+    fi
+
+    echo "✓ Trove installation verified"
     echo ""
     return 0
   fi
@@ -673,6 +709,14 @@ install_trove() {
     echo "  Symlinking from: ${TROVE_DEV_PATH}"
     echo ""
 
+    # Verify dev copy has required files
+    if [[ ! -f "${TROVE_DEV_PATH}/lib/trove_logging.zsh" ]]; then
+      echo "✗ ERROR: Development copy appears incomplete"
+      echo "  Missing: ${TROVE_DEV_PATH}/lib/trove_logging.zsh"
+      echo "  Please ensure dev repository is properly cloned"
+      return 1
+    fi
+
     if sudo ln -sf "${TROVE_DEV_PATH}" "${TROVE_HOME}"; then
       echo "✓ Trove symlinked from development copy"
     else
@@ -686,7 +730,7 @@ install_trove() {
     echo "  Repository: ${TROVE_REPO}"
     echo ""
 
-    if sudo git clone --quiet "${TROVE_REPO}" "${TROVE_HOME}" 2>/dev/null; then
+    if sudo git clone "${TROVE_REPO}" "${TROVE_HOME}"; then
       echo "✓ Trove cloned successfully"
     else
       echo ""
@@ -696,6 +740,9 @@ install_trove() {
       echo ""
       echo "Options to resolve:"
       echo "  1. Set up SSH keys and retry"
+      echo "     - Add SSH key: ssh-keygen -t ed25519"
+      echo "     - Add to git server: cat ~/.ssh/id_ed25519.pub"
+      echo "     - Test: ssh -T git@git.thesecretlab.io"
       echo "  2. Use HTTPS temporarily:"
       echo "     export DF_TROVE_REPO='https://git.thesecretlab.io/marana/trove.git'"
       echo "  3. Install manually after bootstrap:"
@@ -717,6 +764,7 @@ install_trove() {
     else
       sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "${TROVE_HOME}"
       echo "✓ Ownership set to ${CURRENT_USER}:${CURRENT_USER}"
+      echo "⚠ Warning: kgroup not found, using user ownership"
     fi
   elif [[ "$DF_PLATFORM" == "macOS" ]]; then
     # macOS: check if kgroup exists
@@ -726,6 +774,7 @@ install_trove() {
     else
       sudo chown -R "${CURRENT_USER}:staff" "${TROVE_HOME}"
       echo "✓ Ownership set to ${CURRENT_USER}:staff"
+      echo "⚠ Warning: kgroup not found, using staff ownership"
     fi
   fi
 
@@ -740,6 +789,184 @@ install_trove() {
     echo ""
     echo "✗ ERROR: Trove installation incomplete"
     echo "  Missing: ${TROVE_HOME}/lib/trove_logging.zsh"
+    echo ""
+    echo "This indicates the repository may not have the expected structure."
+    echo "Please verify the repository contents and try again."
+    echo ""
+    return 1
+  fi
+}
+
+# Install or update Beskar security utilities library
+install_beskar() {
+  local BESKAR_HOME="/opt/beskar"
+  local BESKAR_REPO="${DF_BESKAR_REPO:-ssh://git@git.thesecretlab.io/marana/beskar.git}"
+  local BESKAR_DEV_PATH="${HOME}/Sourcecode/thesecretlab/beskar"
+  local CURRENT_USER
+
+  # Determine current user (handle sudo)
+  if [[ -n "$SUDO_USER" ]]; then
+    CURRENT_USER="$SUDO_USER"
+  else
+    CURRENT_USER="$(whoami)"
+  fi
+
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         Setting Up Beskar Security Library         "
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+
+  # Check if already installed (update if exists)
+  if [[ -d "${BESKAR_HOME}/.git" ]]; then
+    echo "Beskar already installed. Checking for updates..."
+
+    # Store current commit for comparison
+    local current_commit
+    current_commit=$(cd "${BESKAR_HOME}" && git rev-parse HEAD 2>/dev/null)
+
+    # Attempt to pull updates with proper error handling
+    echo "  Pulling latest changes..."
+    if (cd "${BESKAR_HOME}" && sudo git pull 2>&1 | tee /dev/tty | grep -q "Already up to date\|Updating"); then
+      local new_commit
+      new_commit=$(cd "${BESKAR_HOME}" && git rev-parse HEAD 2>/dev/null)
+
+      if [[ "$current_commit" == "$new_commit" ]]; then
+        echo "✓ Beskar already up to date"
+      else
+        echo "✓ Beskar updated successfully (${current_commit:0:8} → ${new_commit:0:8})"
+      fi
+    else
+      echo ""
+      echo "✗ ERROR: Failed to update Beskar"
+      echo "  Current installation may be corrupted or repository unreachable"
+      echo ""
+      echo "Options to resolve:"
+      echo "  1. Check SSH access: ssh -T git@git.thesecretlab.io"
+      echo "  2. Remove and reinstall: sudo rm -rf ${BESKAR_HOME} && ./bootstrap install"
+      echo "  3. Use development mode: link from ~/Sourcecode/thesecretlab/beskar"
+      echo ""
+      return 1
+    fi
+
+    # Verify installation is still valid after update
+    if [[ ! -f "${BESKAR_HOME}/lib/beskar_crypto.zsh" ]]; then
+      echo ""
+      echo "✗ ERROR: Beskar installation corrupted after update"
+      echo "  Missing: ${BESKAR_HOME}/lib/beskar_crypto.zsh"
+      echo ""
+      echo "Run: sudo rm -rf ${BESKAR_HOME} && ./bootstrap install"
+      echo ""
+      return 1
+    fi
+
+    echo "✓ Beskar installation verified"
+    echo ""
+    return 0
+  fi
+
+  echo "Installing Beskar security library..."
+  echo ""
+
+  # Ensure parent directory exists
+  if [[ ! -d "/opt" ]]; then
+    echo "Creating /opt directory..."
+    sudo mkdir -p /opt || {
+      echo "✗ ERROR: Cannot create /opt directory"
+      echo "  Check sudo permissions"
+      return 1
+    }
+  fi
+
+  # Development mode: symlink if local dev copy exists
+  if [[ -d "${BESKAR_DEV_PATH}/.git" ]]; then
+    echo "→ Development mode detected"
+    echo "  Symlinking from: ${BESKAR_DEV_PATH}"
+    echo ""
+
+    # Verify dev copy has required files
+    if [[ ! -f "${BESKAR_DEV_PATH}/lib/beskar_crypto.zsh" ]]; then
+      echo "✗ ERROR: Development copy appears incomplete"
+      echo "  Missing: ${BESKAR_DEV_PATH}/lib/beskar_crypto.zsh"
+      echo "  Please ensure dev repository is properly cloned"
+      return 1
+    fi
+
+    if sudo ln -sf "${BESKAR_DEV_PATH}" "${BESKAR_HOME}"; then
+      echo "✓ Beskar symlinked from development copy"
+    else
+      echo "✗ ERROR: Failed to create symlink"
+      echo "  Please check permissions on /opt"
+      return 1
+    fi
+  else
+    # Production mode: clone from repository
+    echo "→ Cloning Beskar from repository"
+    echo "  Repository: ${BESKAR_REPO}"
+    echo ""
+
+    if sudo git clone "${BESKAR_REPO}" "${BESKAR_HOME}"; then
+      echo "✓ Beskar cloned successfully"
+    else
+      echo ""
+      echo "✗ ERROR: Failed to clone Beskar repository"
+      echo ""
+      echo "This likely means SSH access is not configured yet."
+      echo ""
+      echo "Options to resolve:"
+      echo "  1. Set up SSH keys and retry"
+      echo "     - Add SSH key: ssh-keygen -t ed25519"
+      echo "     - Add to git server: cat ~/.ssh/id_ed25519.pub"
+      echo "     - Test: ssh -T git@git.thesecretlab.io"
+      echo "  2. Use HTTPS temporarily:"
+      echo "     export DF_BESKAR_REPO='https://git.thesecretlab.io/marana/beskar.git'"
+      echo "  3. Install manually after bootstrap:"
+      echo "     sudo git clone <repo-url> ${BESKAR_HOME}"
+      echo ""
+      return 1
+    fi
+  fi
+
+  # Set ownership to current user and kgroup
+  echo ""
+  echo "Setting ownership and permissions..."
+
+  if [[ "$DF_PLATFORM" == "ubuntu" ]]; then
+    # Linux: check if kgroup exists
+    if getent group kgroup &>/dev/null; then
+      sudo chown -R "${CURRENT_USER}:kgroup" "${BESKAR_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:kgroup"
+    else
+      sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "${BESKAR_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:${CURRENT_USER}"
+      echo "⚠ Warning: kgroup not found, using user ownership"
+    fi
+  elif [[ "$DF_PLATFORM" == "macOS" ]]; then
+    # macOS: check if kgroup exists
+    if dscl . -read /Groups/kgroup &>/dev/null 2>&1; then
+      sudo chown -R "${CURRENT_USER}:kgroup" "${BESKAR_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:kgroup"
+    else
+      sudo chown -R "${CURRENT_USER}:staff" "${BESKAR_HOME}"
+      echo "✓ Ownership set to ${CURRENT_USER}:staff"
+      echo "⚠ Warning: kgroup not found, using staff ownership"
+    fi
+  fi
+
+  # Verify installation
+  if [[ -f "${BESKAR_HOME}/lib/beskar_crypto.zsh" ]]; then
+    echo "✓ Beskar installation verified"
+    echo ""
+    echo "Beskar security library ready!"
+    echo ""
+    return 0
+  else
+    echo ""
+    echo "✗ ERROR: Beskar installation incomplete"
+    echo "  Missing: ${BESKAR_HOME}/lib/beskar_crypto.zsh"
+    echo ""
+    echo "This indicates the repository may not have the expected structure."
+    echo "Please verify the repository contents and try again."
     echo ""
     return 1
   fi
@@ -892,6 +1119,15 @@ install_dotfiles() {
         install_zsh
         install_tui_dependencies
         setup_1password_optional
+        setup_kgroup_infrastructure
+
+        # Ensure trove and beskar are installed even if dotFiles exists
+        install_trove || {
+          echo "⚠ Warning: Trove installation failed (non-critical for existing dotFiles)"
+        }
+        install_beskar || {
+          echo "⚠ Warning: Beskar installation failed (non-critical for existing dotFiles)"
+        }
 
         # Bootstrap complete - offer to run dotFiles install
         complete_bootstrap_and_offer_dotfiles_install
@@ -931,7 +1167,20 @@ install_dotfiles() {
   install_tui_dependencies
   setup_1password_optional
   setup_kgroup_infrastructure
-  install_trove
+  install_trove || {
+    echo ""
+    echo "✗ FATAL: Trove installation failed"
+    echo "  Cannot proceed without Trove utilities"
+    echo ""
+    exit 1
+  }
+  install_beskar || {
+    echo ""
+    echo "✗ FATAL: Beskar installation failed"
+    echo "  Cannot proceed without Beskar security library"
+    echo ""
+    exit 1
+  }
   verify_git_access
 
   # Optional: Ensure bootstrap repo uses SSH (only if user wants auto-conversion)
@@ -980,6 +1229,8 @@ install_dotfiles() {
       echo "  ✓ 1Password CLI"
     fi
     echo "  ✓ kgroup (shared utilities group)"
+    echo "  ✓ Trove utilities library"
+    echo "  ✓ Beskar security library"
     echo "  ✓ dotFiles registry infrastructure"
     echo "  ✓ dotFiles repository cloned (kgroup permissions set)"
     echo ""

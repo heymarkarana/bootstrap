@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-03-22
+
+### Added
+- **Beskar security library installation** - New `install_beskar()` function for security utilities
+  - Repository: `ssh://git@git.thesecretlab.io/marana/beskar.git`
+  - Install location: `/opt/beskar`
+  - Verification file: `/opt/beskar/lib/beskar_crypto.zsh`
+  - Development mode support from `~/Sourcecode/thesecretlab/beskar`
+  - Full error handling with SSH setup instructions
+  - Follows same pattern as Trove installation for consistency
+
+### Changed
+- **Improved Trove installation reliability and idempotency**
+  - Smart update detection with commit hash comparison (shows `abc123 → def456` changes)
+  - Transparent git operations (removed `--quiet` and `2>/dev/null` flags)
+  - Fail-fast error handling - returns error code on failures instead of silent warnings
+  - Enhanced SSH setup instructions with key generation and test commands
+  - Development mode verification - checks required files exist before symlinking
+  - Post-update integrity checks to detect corrupted installations
+  - Kgroup fallback warnings when kgroup is not found
+- **Updated installation dependency chain**
+  - Order: kgroup → trove → beskar → dotFiles
+  - Fail-fast behavior - exits immediately if trove or beskar installation fails
+  - Non-blocking for existing dotFiles - shows warnings but continues when dotFiles already installed
+- **Enhanced success messages** - Now lists trove and beskar installations
+
+### Fixed
+- Silent git pull failures in Trove updates that continued with stale versions
+- Missing error propagation when dependency installations failed
+- Lack of verification that git operations actually succeeded
+
 ## [2.1.1] - 2026-03-16
 
 ### Added
