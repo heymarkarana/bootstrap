@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-03-24
+
+### Fixed
+- **Documentation accuracy** - Removed outdated "armory-vault" reference from central registry tools list
+  - Only Trove and Beskar are actual `/opt` registered tools
+  - The armory is Beskar's data directory, not a separate tool
+
 ## [2.1.4] - 2026-03-22
 
 ### Changed
 - **Migrated to central registry system** - Bootstrap now uses `/opt/.config/kapps/` managed by Trove
   - Removed legacy `/opt/.config/dotFiles` registry creation from `setup_kgroup_infrastructure()`
   - Trove installer now creates and owns the central registry infrastructure
-  - All `/opt` tools (Trove, Beskar, armory-vault) register in central location
+  - All `/opt` tools (Trove, Beskar) register in central location
   - Enables cross-tool discovery and dependency resolution
 - **Trove installation** - Now executes Trove's install script after clone/symlink
   - Creates `/opt/.config/kapps/` directory with kgroup ownership
