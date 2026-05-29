@@ -46,23 +46,26 @@ set_bootstrap_home() {
 DF_PLATFORM=$(detect_platform)
 DF_BOOTSTRAP_HOME=$(set_bootstrap_home)
 
+_BOOTSTRAP_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+if [[ -f "${_BOOTSTRAP_LIB_DIR}/bootstrap_config.sh" ]]; then
+  # shellcheck source=lib/bootstrap_config.sh
+  source "${_BOOTSTRAP_LIB_DIR}/bootstrap_config.sh"
+fi
+
 # Interactive repository configuration
 configure_repository() {
-  # Return if already configured via environment
+  bootstrap_load_config 2>/dev/null || true
+
+  # Return if already configured via environment or config
   if [[ -n "$SELECTED_REPO" ]]; then
     echo "Using repository from environment: $SELECTED_REPO"
     return 0
   fi
 
-  # Check for config file
-  local config_file="${HOME}/.bootstrap.config"
-  if [[ -f "$config_file" ]]; then
-    source "$config_file"
-    if [[ -n "$DOTFILES_REPO" ]]; then
-      SELECTED_REPO="$DOTFILES_REPO"
-      echo "Using repository from config: $SELECTED_REPO"
-      return 0
-    fi
+  if [[ -n "${DOTFILES_REPO:-}" ]]; then
+    SELECTED_REPO="$DOTFILES_REPO"
+    echo "Using repository from config: $SELECTED_REPO"
+    return 0
   fi
 
   # Interactive prompt
@@ -123,8 +126,12 @@ show_help() {
   echo "   refresh <branch|tag>        Refresh and pull a specific branch or tag."
   echo "   refresh --hard <branch|tag> Hard reset to a specific branch or tag. Deletes and reclones the repo."
   echo "   1password-reauth            Re-authenticate to 1Password when session expires."
+  echo "   keys                        Prepare SSH keys for private Git (HTTP bootstrap-curl)"
   echo
   echo "Configuration:"
+  echo "   DF_BOOTSTRAP_CONFIG — local path, file:// path, or https:// URL to config"
+  echo "   Default local file: ~/.bootstrap.config (see bootstrap.config.example)"
+  echo ""
   echo "   Set DOTFILES_REPO environment variable:"
   echo "     export DOTFILES_REPO='https://github.com/username/dotFiles.git'      # HTTPS (recommended)"
   echo "     export DOTFILES_REPO='ssh://git@github.com/username/dotFiles.git'    # SSH (requires keys)"
@@ -137,6 +144,80 @@ show_help() {
   echo
   echo "   Note: Both HTTPS and SSH formats are supported. Use your preference."
   echo
+  echo "   Cold start (public bootstrap repo, no clone required):"
+  echo "     export DOTFILES_REPO='ssh://git@git.example.com/user/dotFiles.git'"
+  echo "     curl -fsSL \"\${DF_BOOTSTRAP_PUBLIC_RAW:-https://git.thesecretlab.io/marana/bootstrap/raw/main}/scripts/bootstrap-curl.sh\" | bash -s -- install minimal"
+  echo "   SSH keys only:"
+  echo "     curl -fsSL \"\${DF_BOOTSTRAP_PUBLIC_RAW:-...}/scripts/bootstrap-curl.sh\" | bash -s -- keys"
+  echo "     ./bootstrap keys"
+  echo
+}
+
+# Prepare SSH keys via bootstrap lib (local) or public bootstrap-curl HTTP entry
+bootstrap_ssh_prepare() {
+  local raw_base="${DF_BOOTSTRAP_PUBLIC_RAW:-}"
+  local lib_ssh="${ORIGINAL_USER_HOME}/.bootstrap/lib/bootstrap_ssh.zsh"
+  local repo_for_host="${SELECTED_REPO:-${DOTFILES_REPO:-}}"
+
+  bootstrap_load_config 2>/dev/null || true
+  raw_base="${DF_BOOTSTRAP_PUBLIC_RAW:-${DF_BOOTSTRAP_RAW_URL:-${DOTFILES_RAW_BASE:-$raw_base}}}"
+  repo_for_host="${SELECTED_REPO:-${DOTFILES_REPO:-$repo_for_host}}"
+
+  if [[ -z "$raw_base" && -n "${DF_BOOTSTRAP_REPO:-}" ]]; then
+    local repo="${DF_BOOTSTRAP_REPO%/}"
+    repo="${repo%.git}"
+    local branch="${DF_BOOTSTRAP_BRANCH:-main}"
+    if [[ "$repo" =~ ^https?:// ]]; then
+      local host path
+      host=$(echo "$repo" | sed -E 's#^https?://([^/]+)/.*#\1#')
+      path=$(echo "$repo" | sed -E 's#^https?://[^/]+/(.+)#\1#')
+      if [[ "$host" == "github.com" ]]; then
+        raw_base="https://raw.githubusercontent.com/${path}/${branch}"
+      else
+        raw_base="https://${host}/${path}/raw/${branch}"
+      fi
+    fi
+  fi
+
+  export DOTFILES_REPO="${repo_for_host:-${DOTFILES_REPO:-}}"
+  export DF_DOTFILES_REPO="${DOTFILES_REPO}"
+
+  echo ""
+  echo "════════════════════════════════════════════════════════════════"
+  echo "         SSH Key Preparation (Git access)         "
+  echo "════════════════════════════════════════════════════════════════"
+  echo ""
+
+  if [[ -f "$lib_ssh" ]] && command -v zsh &>/dev/null; then
+    zsh -c "source '${lib_ssh}'; df_bootstrap_ssh_prepare '${DOTFILES_REPO}'" || return 1
+    return 0
+  fi
+
+  if [[ -n "$raw_base" ]]; then
+    if ! command -v curl &>/dev/null; then
+      echo "Error: curl is required for HTTP SSH key preparation"
+      return 1
+    fi
+    if ! command -v zsh &>/dev/null; then
+      if [[ -f /etc/os-release ]] && grep -qi ubuntu /etc/os-release 2>/dev/null; then
+        sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+      else
+        echo "Error: zsh is required for SSH key preparation"
+        return 1
+      fi
+    fi
+    curl -fsSL "${raw_base%/}/scripts/bootstrap-curl.sh" | bash -s -- keys || return 1
+    return 0
+  fi
+
+  echo "Error: bootstrap SSH library not found"
+  echo "  Set DF_BOOTSTRAP_PUBLIC_RAW or HTTPS DF_BOOTSTRAP_REPO (see bootstrap.config.example)"
+  return 1
+}
+
+run_bootstrap_keys() {
+  configure_repository 2>/dev/null || true
+  bootstrap_ssh_prepare
 }
 
 # Usage: convert_git_remote_to_ssh /path/to/repo git@yourdomain:username/repo.git
@@ -711,7 +792,13 @@ verify_git_access() {
 # Install or update Trove utilities library
 install_trove() {
   local TROVE_HOME="/opt/trove"
-  local TROVE_REPO="${DF_TROVE_REPO:-ssh://git@git.thesecretlab.io/marana/trove.git}"
+  local TROVE_REPO="${DF_TROVE_REPO:-}"
+  if [[ -z "$TROVE_REPO" ]]; then
+    echo "✗ ERROR: DF_TROVE_REPO is not set"
+    echo "  Example: export DF_TROVE_REPO=\"ssh://git@git.example.com/<user>/trove.git\""
+    echo "  Or add DF_TROVE_REPO to ~/.bootstrap.config"
+    return 1
+  fi
   local TROVE_DEV_PATH="${HOME}/Sourcecode/thesecretlab/trove"
   local CURRENT_USER
 
@@ -903,7 +990,13 @@ install_trove() {
 # Install or update Beskar security utilities library
 install_beskar() {
   local BESKAR_HOME="/opt/beskar"
-  local BESKAR_REPO="${DF_BESKAR_REPO:-ssh://git@git.thesecretlab.io/marana/beskar.git}"
+  local BESKAR_REPO="${DF_BESKAR_REPO:-}"
+  if [[ -z "$BESKAR_REPO" ]]; then
+    echo "✗ ERROR: DF_BESKAR_REPO is not set"
+    echo "  Example: export DF_BESKAR_REPO=\"ssh://git@git.example.com/<user>/beskar.git\""
+    echo "  Or add DF_BESKAR_REPO to ~/.bootstrap.config"
+    return 1
+  fi
   local BESKAR_DEV_PATH="${HOME}/Sourcecode/thesecretlab/beskar"
   local CURRENT_USER
 
@@ -1291,6 +1384,17 @@ install_dotfiles() {
   install_tui_dependencies
   setup_1password_optional
   setup_kgroup_infrastructure
+  # SSH keys before any private Git clones (Trove, Beskar, dotFiles use SSH by default)
+  bootstrap_ssh_prepare || {
+    echo ""
+    echo "✗ FATAL: SSH key preparation failed"
+    echo "  Run: ./bootstrap keys"
+    echo ""
+    exit 1
+  }
+
+  verify_git_access
+
   install_trove || {
     echo ""
     echo "✗ FATAL: Trove installation failed"
@@ -1305,13 +1409,18 @@ install_dotfiles() {
     echo ""
     exit 1
   }
-  verify_git_access
 
   # Optional: Ensure bootstrap repo uses SSH (only if user wants auto-conversion)
   # Uncomment the next line if you want to force SSH for bootstrap repo
   # ensure_bootstrap_ssh_connectivity
 
+  local bootstrap_profile="${BOOTSTRAP_PROFILE:-minimal}"
   local branch_or_tag="${BRANCH:-main}"
+
+  if [[ -n "$BRANCH" && "$BRANCH" =~ ^(minimal|developer|server|creative)$ ]]; then
+    bootstrap_profile="$BRANCH"
+    branch_or_tag="${BOOTSTRAP_GIT_BRANCH:-main}"
+  fi
 
   echo "Cloning from ${SELECTED_REPO}..."
   if git clone --depth 1 --branch "${branch_or_tag}" "${SELECTED_REPO}" "${TARGET}"; then
@@ -1363,13 +1472,16 @@ install_dotfiles() {
     echo "════════════════════════════════════════════════════════════════"
     echo ""
 
-    # Run the dotFiles install script directly (not through df wrapper which requires env)
-    if [[ -x "./install/install.zsh" ]]; then
-      # Explicitly pass current environment to ensure PATH is preserved
-      env PATH="$PATH" ./install/install.zsh
+    # Run dotFiles setup wrapper (profile + interview); requires zsh
+    if [[ -x "./setup" ]]; then
+      echo "Profile: ${bootstrap_profile} (git branch: ${branch_or_tag})"
+      exec env PATH="$PATH" HOME="${ORIGINAL_USER_HOME}" ./setup "${bootstrap_profile}"
+    elif [[ -f "./install/install.zsh" ]]; then
+      echo "Warning: ./setup not found — running install.zsh (no profile). Prefer: ./setup ${bootstrap_profile}"
+      exec env PATH="$PATH" HOME="${ORIGINAL_USER_HOME}" zsh ./install/install.zsh "${bootstrap_profile}"
     else
-      echo "Warning: Install script not found. Manual setup required."
-      echo "Please run: cd ${TARGET} && ./install/install.zsh"
+      echo "Warning: Install entrypoint not found. Manual setup required."
+      echo "Please run: cd ${TARGET} && ./setup ${bootstrap_profile}"
     fi
 
     switch_to_zsh
@@ -1425,6 +1537,9 @@ case ${COMMAND} in
     ;;
   1password-reauth | reauth-1password | op-reauth)
     reauthenticate_1password
+    ;;
+  keys | ssh-keys | ssh)
+    run_bootstrap_keys
     ;;
   *)
     echo "Unknown command: ${COMMAND}" >&2

@@ -1,0 +1,24 @@
+# Copy to ~/.bootstrap.config (chmod 600) or host at an HTTP URL and set DF_BOOTSTRAP_CONFIG.
+#
+# Local file:
+#   export DF_BOOTSTRAP_CONFIG="$HOME/.bootstrap.config"
+#
+# HTTP (public URL — no auth required for curl):
+#   export DF_BOOTSTRAP_CONFIG="https://<git-server>/<user>/bootstrap.config"
+#
+# file:// is also supported:
+#   export DF_BOOTSTRAP_CONFIG="file://$HOME/.bootstrap.config"
+
+# Public HTTPS — no auth required for curl/clone
+DF_BOOTSTRAP_REPO="https://<git-server>/<user>/bootstrap.git"
+# Optional if auto-derive from DF_BOOTSTRAP_REPO fails (GitHub uses raw.githubusercontent.com)
+# DF_BOOTSTRAP_PUBLIC_RAW="https://<git-server>/<user>/bootstrap/raw/main"
+
+# Private SSH — keys must be on your Git server
+DOTFILES_REPO="ssh://git@<git-server>/<user>/dotFiles.git"
+DF_TROVE_REPO="ssh://git@<git-server>/<user>/trove.git"
+DF_BESKAR_REPO="ssh://git@<git-server>/<user>/beskar.git"
+
+# Optional
+# DF_GIT_SSH_HOST="git.example.com"
+# DF_BOOTSTRAP_BRANCH="main"

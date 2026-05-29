@@ -10,31 +10,39 @@ Minimal bootstrap script to prepare a fresh macOS or Ubuntu system for dotFiles 
 - Respects your chosen protocol (HTTPS or SSH)
 - Integrates with dotFiles v4.0.0 installer
 
-## Quick Start
+## Quick Start (one-line cold start)
+
+The **bootstrap** repo must be **public over HTTPS** for `curl`. Private repos (dotFiles, Trove, Beskar) use SSH after keys are on your Git server.
+
+```bash
+export DF_BOOTSTRAP_REPO="https://<git-server>/<user>/bootstrap.git"
+export DOTFILES_REPO="ssh://git@<git-server>/<user>/dotFiles.git"
+export DF_TROVE_REPO="ssh://git@<git-server>/<user>/trove.git"
+export DF_BESKAR_REPO="ssh://git@<git-server>/<user>/beskar.git"
+
+curl -fsSL "${DF_BOOTSTRAP_PUBLIC_RAW}/scripts/bootstrap-curl.sh" | bash -s -- install minimal
+```
+
+`DF_BOOTSTRAP_PUBLIC_RAW` is derived from `DF_BOOTSTRAP_REPO` on Forgejo/GitLab/Gitea; set it explicitly for GitHub — see `bootstrap.config.example`.
+
+## Quick Start (clone bootstrap first)
 
 ```bash
 # 1. Install prerequisites
 sudo softwareupdate -i -a  # macOS only
 xcode-select --install      # macOS only
 
-# 2. Clone this bootstrap repository
-git clone https://github.com/yourusername/bootstrap.git $HOME/.bootstrap
-cd $HOME/.bootstrap
+# 2. Clone this bootstrap repository (public HTTPS)
+git clone "https://<git-server>/<user>/bootstrap.git" "$HOME/.bootstrap"
+cd "$HOME/.bootstrap"
 
-# 3. Configure your dotFiles repository (one of these methods):
-
-# Method A: Environment variable (HTTPS recommended for initial setup)
-export DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
-
-# Method B: Config file
-cat > ~/.bootstrap.config <<'EOF'
-DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
-EOF
-
-# Method C: Interactive prompt (will ask during installation)
+# 3. Configure repositories
+cp bootstrap.config.example ~/.bootstrap.config
+chmod 600 ~/.bootstrap.config
+# edit DOTFILES_REPO, DF_TROVE_REPO, DF_BESKAR_REPO
 
 # 4. Run installation
-./bootstrap install
+./bootstrap install minimal
 ```
 
 ## Configuration
@@ -45,27 +53,23 @@ The bootstrap script needs to know where your dotFiles repository is located. Yo
 
 **1. Environment Variable** (Recommended for automation)
 ```bash
-export DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
-./bootstrap install
+export DOTFILES_REPO="ssh://git@<git-server>/<user>/dotFiles.git"
+export DF_TROVE_REPO="ssh://git@<git-server>/<user>/trove.git"
+export DF_BESKAR_REPO="ssh://git@<git-server>/<user>/beskar.git"
+./bootstrap install minimal
 ```
 
 **2. Config File** (Recommended for manual use)
 ```bash
-# Create ~/.bootstrap.config
-cat > ~/.bootstrap.config <<'EOF'
-DOTFILES_REPO="https://github.com/yourusername/dotFiles.git"
-EOF
+cp bootstrap.config.example ~/.bootstrap.config
 chmod 600 ~/.bootstrap.config
-
-./bootstrap install
+# edit URLs, then:
+./bootstrap install minimal
 ```
 
-**3. Interactive Prompt** (Default)
+**3. Interactive Prompt** (if `DOTFILES_REPO` unset)
 ```bash
-# Bootstrap will prompt you for the repository URL
-./bootstrap install
-# Enter: https://github.com/yourusername/dotFiles.git
-# Save config? Y
+./bootstrap install minimal
 ```
 
 ### Supported Repository Formats

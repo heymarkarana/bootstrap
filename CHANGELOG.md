@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-05-28
+
+### Added
+- **`scripts/bootstrap-curl.sh`** / **`scripts/bootstrap-curl.zsh`** — public HTTP cold start: SSH keys, clone bootstrap (HTTPS), full install (Trove, Beskar, dotFiles, setup)
+- **`lib/bootstrap_ssh.zsh`**, **`lib/bootstrap_config.sh`**, **`lib/bootstrap_config.zsh`** — SSH and config loading (local file or HTTP URL via `DF_BOOTSTRAP_CONFIG`)
+- **`bootstrap.config.example`** — template for `~/.bootstrap.config` or hosted config
+
+### Changed
+- **Generic repository URLs** — no hardcoded hosts; require `DOTFILES_REPO`, `DF_TROVE_REPO`, `DF_BESKAR_REPO` (or config file)
+- **`bootstrap_ssh_prepare()`** — local lib or `bootstrap-curl.sh` over HTTP
+- **Install order** — SSH before Trove/Beskar/dotFiles clones; `verify_git_access` after keys
+- **dotFiles handoff** — `exec ./setup <profile>` (e.g. `install minimal`)
+- **README** — curl cold-start and config documentation
+
 ## [2.1.5] - 2026-03-24
 
 ### Fixed
