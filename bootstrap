@@ -809,7 +809,16 @@ install_trove() {
     echo "  Or add DF_TROVE_REPO to ~/.bootstrap.config"
     return 1
   fi
-  local TROVE_DEV_PATH="${HOME}/Sourcecode/thesecretlab/trove"
+  # Dev-mode source path: honor DF_TROVE_DEV_PATH (from df.env/env), else
+  # auto-detect the working copy across known roots, else default to thelab.
+  local TROVE_DEV_PATH="${DF_TROVE_DEV_PATH:-}"
+  if [[ -z "$TROVE_DEV_PATH" ]]; then
+    local _trove_cand
+    for _trove_cand in "${HOME}/Sourcecode/thelab/trove" "${HOME}/Sourcecode/thesecretlab/trove"; do
+      [[ -d "${_trove_cand}/.git" ]] && { TROVE_DEV_PATH="$_trove_cand"; break; }
+    done
+    : "${TROVE_DEV_PATH:=${HOME}/Sourcecode/thelab/trove}"
+  fi
   local CURRENT_USER
 
   # Determine current user (handle sudo)
@@ -851,7 +860,7 @@ install_trove() {
       echo "Options to resolve:"
       echo "  1. Check SSH access: ssh -T git@git.thesecretlab.io"
       echo "  2. Remove and reinstall: sudo rm -rf ${TROVE_HOME} && ./bootstrap install"
-      echo "  3. Use development mode: link from ~/Sourcecode/thesecretlab/trove"
+      echo "  3. Use development mode: link from ~/Sourcecode/thelab/trove"
       echo ""
       return 1
     fi
@@ -1007,7 +1016,16 @@ install_beskar() {
     echo "  Or add DF_BESKAR_REPO to ~/.bootstrap.config"
     return 1
   fi
-  local BESKAR_DEV_PATH="${HOME}/Sourcecode/thesecretlab/beskar"
+  # Dev-mode source path: honor DF_BESKAR_DEV_PATH (from df.env/env), else
+  # auto-detect the working copy across known roots, else default to thelab.
+  local BESKAR_DEV_PATH="${DF_BESKAR_DEV_PATH:-}"
+  if [[ -z "$BESKAR_DEV_PATH" ]]; then
+    local _beskar_cand
+    for _beskar_cand in "${HOME}/Sourcecode/thelab/beskar" "${HOME}/Sourcecode/thesecretlab/beskar"; do
+      [[ -d "${_beskar_cand}/.git" ]] && { BESKAR_DEV_PATH="$_beskar_cand"; break; }
+    done
+    : "${BESKAR_DEV_PATH:=${HOME}/Sourcecode/thelab/beskar}"
+  fi
   local CURRENT_USER
 
   # Determine current user (handle sudo)
@@ -1049,7 +1067,7 @@ install_beskar() {
       echo "Options to resolve:"
       echo "  1. Check SSH access: ssh -T git@git.thesecretlab.io"
       echo "  2. Remove and reinstall: sudo rm -rf ${BESKAR_HOME} && ./bootstrap install"
-      echo "  3. Use development mode: link from ~/Sourcecode/thesecretlab/beskar"
+      echo "  3. Use development mode: link from ~/Sourcecode/thelab/beskar"
       echo ""
       return 1
     fi
