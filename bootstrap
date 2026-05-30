@@ -174,7 +174,7 @@ bootstrap_ssh_prepare() {
       if [[ "$host" == "github.com" ]]; then
         raw_base="https://raw.githubusercontent.com/${path}/${branch}"
       else
-        raw_base="https://${host}/${path}/raw/${branch}"
+        raw_base="https://${host}/${path}/raw/branch/${branch}"
       fi
     fi
   fi

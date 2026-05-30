@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.7] - 2026-05-29
+
+### Fixed
+- **`bootstrap-curl` piped install** — fetch and source `lib/bootstrap_config.zsh` over HTTP; export config via `set -a` and `env` into zsh (fixes `df_bootstrap_load_config: command not found`)
+- **Forgejo raw URL** — derive `…/raw/branch/<branch>` (matches Gitea/Forgejo raw paths)
+- **SSH verify** — broader auth message matching; show first `ssh -T` response when waiting for deploy key
+
 ## [2.1.6] - 2026-05-28
 
 ### Added

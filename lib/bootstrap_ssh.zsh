@@ -85,7 +85,7 @@ df_bootstrap_public_raw_from_https_repo() {
   if [[ "${match[1]}" == "github.com" ]]; then
     print -r -- "https://raw.githubusercontent.com/${match[2]}/${branch}"
   else
-    print -r -- "https://${match[1]}/${match[2]}/raw/${branch}"
+    print -r -- "https://${match[1]}/${match[2]}/raw/branch/${branch}"
   fi
   return 0
 }
@@ -140,7 +140,8 @@ df_bootstrap_ssh_verify() {
   out="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
     -T "${user}@${host}" 2>&1)" || true
 
-  if print -r -- "$out" | grep -qiE 'successfully authenticated|welcome|hi there'; then
+  if print -r -- "$out" | grep -qiE \
+    'successfully authenticated|you.?ve successfully authenticated|welcome to gitlab|hi there|Hi .+! You'; then
     return 0
   fi
   return 1
@@ -223,13 +224,28 @@ df_bootstrap_ssh_prepare() {
   echo "(Ctrl+C to abort)"
   echo ""
 
+  local shown_diag=false
   while true; do
     read -r
     if df_bootstrap_ssh_verify "$host"; then
       echo "SSH access to ${host} verified."
       return 0
     fi
-    echo "Still cannot authenticate. Add the key and press Enter again (Ctrl+C to abort)."
+    if [[ "$shown_diag" == false ]]; then
+      shown_diag=true
+      local diag
+      diag="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+        -i "${key_path}" -T "${DF_GIT_SSH_TEST_USER}@${host}" 2>&1)" || true
+      if [[ -n "$diag" ]]; then
+        echo ""
+        echo "SSH response:"
+        echo "$diag"
+        echo ""
+      fi
+      echo "Ensure the public key above is added on ${host} (deploy key or user SSH keys), then press Enter."
+    else
+      echo "Still cannot authenticate. Add the key and press Enter again (Ctrl+C to abort)."
+    fi
   done
 }
 

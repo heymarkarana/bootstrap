@@ -32,8 +32,10 @@ bootstrap_load_config() {
       rm -f "$tmp"
       return 1
     fi
+    set -a
     # shellcheck source=/dev/null
     source "$tmp"
+    set +a
     rm -f "$tmp"
   else
     local config_path="$config_source"
@@ -49,8 +51,10 @@ bootstrap_load_config() {
       echo "[bootstrap] Error: config file not found: ${config_path}" >&2
       return 1
     fi
+    set -a
     # shellcheck source=/dev/null
     source "$config_path"
+    set +a
   fi
 
   export DOTFILES_REPO="${DOTFILES_REPO:-${DF_DOTFILES_REPO:-}}"

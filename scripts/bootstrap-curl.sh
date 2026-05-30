@@ -32,8 +32,10 @@ _bootstrap_curl_load_config() {
       rm -f "$tmp"
       exit 1
     fi
+    set -a
     # shellcheck source=/dev/null
     source "$tmp"
+    set +a
     rm -f "$tmp"
   else
     local config_path="$config_source"
@@ -43,12 +45,19 @@ _bootstrap_curl_load_config() {
       echo "[bootstrap] Error: config file not found: ${config_path}" >&2
       exit 1
     fi
+    set -a
     # shellcheck source=/dev/null
     source "$config_path"
+    set +a
   fi
 
   export DOTFILES_REPO="${DOTFILES_REPO:-${DF_DOTFILES_REPO:-}}"
   export DF_DOTFILES_REPO="${DF_DOTFILES_REPO:-${DOTFILES_REPO:-}}"
+  export DF_BOOTSTRAP_REPO="${DF_BOOTSTRAP_REPO:-}"
+  export DF_TROVE_REPO="${DF_TROVE_REPO:-}"
+  export DF_BESKAR_REPO="${DF_BESKAR_REPO:-}"
+  export DF_BOOTSTRAP_PUBLIC_RAW="${DF_BOOTSTRAP_PUBLIC_RAW:-}"
+  export DF_GIT_SSH_HOST="${DF_GIT_SSH_HOST:-}"
 }
 
 # Prefer shared lib when this script is run from a checkout (not piped).
@@ -75,7 +84,7 @@ if [[ -z "${DF_BOOTSTRAP_PUBLIC_RAW:-}" && -n "${DF_BOOTSTRAP_REPO:-}" ]]; then
     if [[ "$host" == "github.com" ]]; then
       export DF_BOOTSTRAP_PUBLIC_RAW="https://raw.githubusercontent.com/${path}/${branch}"
     else
-      export DF_BOOTSTRAP_PUBLIC_RAW="https://${host}/${path}/raw/${branch}"
+      export DF_BOOTSTRAP_PUBLIC_RAW="https://${host}/${path}/raw/branch/${branch}"
     fi
   fi
 fi
@@ -109,4 +118,15 @@ if ! command -v zsh &>/dev/null; then
   fi
 fi
 
-exec zsh <(curl -fsSL "$SCRIPT_URL") "$@"
+# Pass through repo/env config to zsh (process substitution cannot source libs from $0).
+exec env \
+  DF_BOOTSTRAP_PUBLIC_RAW="${DF_BOOTSTRAP_PUBLIC_RAW:-}" \
+  DF_BOOTSTRAP_REPO="${DF_BOOTSTRAP_REPO:-}" \
+  DF_BOOTSTRAP_BRANCH="${DF_BOOTSTRAP_BRANCH:-}" \
+  DOTFILES_REPO="${DOTFILES_REPO:-}" \
+  DF_DOTFILES_REPO="${DF_DOTFILES_REPO:-}" \
+  DF_TROVE_REPO="${DF_TROVE_REPO:-}" \
+  DF_BESKAR_REPO="${DF_BESKAR_REPO:-}" \
+  DF_GIT_SSH_HOST="${DF_GIT_SSH_HOST:-}" \
+  DF_BOOTSTRAP_CONFIG="${DF_BOOTSTRAP_CONFIG:-}" \
+  zsh <(curl -fsSL "$SCRIPT_URL") "$@"

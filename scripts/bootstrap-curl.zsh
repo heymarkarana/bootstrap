@@ -7,10 +7,88 @@
 DF_BOOTSTRAP_HOME="${HOME}/.bootstrap"
 DF_DOTFILES_HOME="${HOME}/.dotFiles"
 
-for _cfg_lib in "${0:A:h}/../lib/bootstrap_config.zsh" "${DF_BOOTSTRAP_HOME}/lib/bootstrap_config.zsh"; do
-  [[ -f "$_cfg_lib" ]] && source "$_cfg_lib" && break
-done
-unset _cfg_lib
+_df_curl_harmonize_repo_exports() {
+  export DOTFILES_REPO="${DOTFILES_REPO:-${DF_DOTFILES_REPO:-}}"
+  export DF_DOTFILES_REPO="${DF_DOTFILES_REPO:-${DOTFILES_REPO:-}}"
+  [[ -n "${DOTFILES_REPO:-}" ]] && export DF_DOTFILES_REPO="$DOTFILES_REPO"
+}
+
+_df_curl_resolve_public_raw() {
+  if [[ -n "${DF_BOOTSTRAP_PUBLIC_RAW:-}" ]]; then
+    export DF_BOOTSTRAP_PUBLIC_RAW="${DF_BOOTSTRAP_PUBLIC_RAW%/}"
+    return 0
+  fi
+  if typeset -f df_bootstrap_resolve_public_raw &>/dev/null; then
+    df_bootstrap_resolve_public_raw && return 0
+  fi
+  local repo="${DF_BOOTSTRAP_REPO:-}"
+  local branch="${DF_BOOTSTRAP_BRANCH:-main}"
+  repo="${repo%/}"
+  repo="${repo%.git}"
+  [[ "$repo" =~ ^https?://([^/]+)/(.+)$ ]] || return 1
+  if [[ "${match[1]}" == "github.com" ]]; then
+    export DF_BOOTSTRAP_PUBLIC_RAW="https://raw.githubusercontent.com/${match[2]}/${branch}"
+  else
+    export DF_BOOTSTRAP_PUBLIC_RAW="https://${match[1]}/${match[2]}/raw/branch/${branch}"
+  fi
+  return 0
+}
+
+_df_curl_fetch_config_lib() {
+  local c
+  local candidates=(
+    "${DF_BOOTSTRAP_HOME}/lib/bootstrap_config.zsh"
+    "${DF_DOTFILES_HOME}/lib/bootstrap_config.zsh"
+  )
+  for c in "${candidates[@]}"; do
+    [[ -f "$c" ]] && print -r -- "$c" && return 0
+  done
+
+  _df_curl_resolve_public_raw || true
+
+  local base tmp
+  for base in "${DF_BOOTSTRAP_PUBLIC_RAW:-}" "${DF_BOOTSTRAP_RAW_URL:-}"; do
+    [[ -z "$base" ]] && continue
+    tmp="$(mktemp "${TMPDIR:-/tmp}/bootstrap_config.XXXXXX")"
+    if curl -fsSL "${base%/}/lib/bootstrap_config.zsh" -o "$tmp" 2>/dev/null; then
+      print -r -- "$tmp"
+      return 0
+    fi
+    rm -f "$tmp"
+  done
+  return 1
+}
+
+_df_curl_source_bootstrap_config() {
+  if typeset -f df_bootstrap_load_config &>/dev/null; then
+    df_bootstrap_load_config || return 1
+    _df_curl_harmonize_repo_exports
+    return 0
+  fi
+
+  local lib
+  if lib="$(_df_curl_fetch_config_lib)"; then
+    source "$lib"
+    [[ "$lib" == /tmp/* || "$lib" == "${TMPDIR:-/tmp}"/* ]] && rm -f "$lib"
+    if typeset -f df_bootstrap_load_config &>/dev/null; then
+      df_bootstrap_load_config || return 1
+    fi
+    _df_curl_harmonize_repo_exports
+    return 0
+  fi
+
+  if [[ -f "${HOME}/.bootstrap.config" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "${HOME}/.bootstrap.config"
+    set +a
+    _df_curl_harmonize_repo_exports
+    return 0
+  fi
+
+  _df_curl_harmonize_repo_exports
+  return 0
+}
 
 _df_curl_ensure_path() {
   export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME}/.local/bin:${PATH}"
@@ -53,9 +131,7 @@ _df_curl_ensure_prereqs() {
 }
 
 _df_curl_require_dotfiles_repo() {
-  df_bootstrap_load_config
-  export DOTFILES_REPO="${DOTFILES_REPO:-${DF_DOTFILES_REPO:-}}"
-  export DF_DOTFILES_REPO="${DOTFILES_REPO}"
+  _df_curl_source_bootstrap_config || true
   if [[ -z "${DOTFILES_REPO:-}" ]]; then
     echo "[bootstrap] Error: DOTFILES_REPO is required" >&2
     echo "  Example: export DOTFILES_REPO=\"ssh://git@git.example.com/<user>/dotFiles.git\"" >&2
@@ -73,7 +149,7 @@ _df_curl_require_install_repos() {
     exit 1
   fi
 
-  if ! df_bootstrap_resolve_public_raw; then
+  if ! _df_curl_resolve_public_raw; then
     echo "[bootstrap] Error: set DF_BOOTSTRAP_PUBLIC_RAW or use an HTTPS DF_BOOTSTRAP_REPO" >&2
     echo "  Example: export DF_BOOTSTRAP_PUBLIC_RAW=\"https://git.example.com/<user>/bootstrap/raw/main\"" >&2
     exit 1
@@ -105,10 +181,8 @@ _df_curl_fetch_lib() {
     fi
   done
 
-  df_bootstrap_load_config
-  if [[ -z "${DF_BOOTSTRAP_PUBLIC_RAW:-}" ]] && typeset -f df_bootstrap_resolve_public_raw &>/dev/null; then
-    df_bootstrap_resolve_public_raw || true
-  fi
+  _df_curl_source_bootstrap_config || true
+  _df_curl_resolve_public_raw || true
 
   local base tmp
   for base in "${DF_BOOTSTRAP_PUBLIC_RAW:-}" "${DF_BOOTSTRAP_RAW_URL:-}"; do
@@ -233,6 +307,8 @@ cmd_install() {
 }
 
 _df_curl_ensure_prereqs
+_df_curl_source_bootstrap_config || true
+_df_curl_resolve_public_raw || true
 
 if [[ $# -eq 0 ]]; then
   _df_curl_usage
