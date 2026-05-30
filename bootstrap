@@ -1527,7 +1527,9 @@ case ${COMMAND} in
     echo "Environment file is now managed separately. No action performed."
     ;;
   install)
-    if [[ -x "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh" ]]; then
+    if [[ "${DF_BOOTSTRAP_SKIP_GITHARNESS:-}" != "1" ]] && \
+       [[ ! -f "${ORIGINAL_USER_HOME}/.ssh/id_ed25519" ]] && \
+       [[ -x "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh" ]]; then
       "${ORIGINAL_USER_HOME}/.bootstrap/GitHarness.sh"
     fi
     install_dotfiles

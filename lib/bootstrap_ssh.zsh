@@ -210,6 +210,7 @@ df_bootstrap_ssh_prepare() {
 
   if df_bootstrap_ssh_verify "$host"; then
     echo "SSH access to ${host} verified."
+    export DF_BOOTSTRAP_SSH_VERIFIED=1
     return 0
   fi
 
@@ -229,6 +230,7 @@ df_bootstrap_ssh_prepare() {
     read -r
     if df_bootstrap_ssh_verify "$host"; then
       echo "SSH access to ${host} verified."
+      export DF_BOOTSTRAP_SSH_VERIFIED=1
       return 0
     fi
     if [[ "$shown_diag" == false ]]; then

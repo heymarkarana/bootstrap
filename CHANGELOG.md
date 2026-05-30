@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.8] - 2026-05-30
+
+### Fixed
+- **Cold-start install** — skip `GitHarness.sh` when `~/.ssh/id_ed25519` already exists or after `bootstrap-curl` SSH verify (`DF_BOOTSTRAP_SKIP_GITHARNESS`)
+- **`lib/bootstrap_ssh.zsh`** — set `DF_BOOTSTRAP_SSH_VERIFIED=1` when Git SSH access is confirmed
+
 ## [2.1.7] - 2026-05-29
 
 ### Fixed
