@@ -762,8 +762,18 @@ verify_git_access() {
       ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
     fi
 
-    if ssh -o BatchMode=yes -o StrictHostKeyChecking=no -T "git@${host}" 2>&1 | grep -qi "successfully authenticated"; then
+    local lib_ssh="${ORIGINAL_USER_HOME}/.bootstrap/lib/bootstrap_ssh.zsh"
+    if [[ -f "$lib_ssh" ]] && command -v zsh &>/dev/null; then
+      if zsh -c "source '${lib_ssh}'; df_bootstrap_ssh_verify '${host}'"; then
+        echo "✅ SSH access to ${host} verified."
+        export DF_BOOTSTRAP_SSH_VERIFIED=1
+        return 0
+      fi
+    elif ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T "git@${host}" 2>&1 | \
+      grep -qiE 'successfully authenticated|forgejo does not provide shell access|hi there'; then
       echo "✅ SSH access to ${host} verified."
+      export DF_BOOTSTRAP_SSH_VERIFIED=1
+      return 0
     else
       echo "⚠️  SSH access to ${host} failed."
       echo "SSH keys may not be configured yet. You can:"
@@ -1385,15 +1395,23 @@ install_dotfiles() {
   setup_1password_optional
   setup_kgroup_infrastructure
   # SSH keys before any private Git clones (Trove, Beskar, dotFiles use SSH by default)
-  bootstrap_ssh_prepare || {
-    echo ""
-    echo "✗ FATAL: SSH key preparation failed"
-    echo "  Run: ./bootstrap keys"
-    echo ""
-    exit 1
-  }
+  if [[ "${DF_BOOTSTRAP_SSH_VERIFIED:-}" == "1" ]]; then
+    echo "✓ SSH already verified (bootstrap-curl) — skipping duplicate key preparation"
+  else
+    bootstrap_ssh_prepare || {
+      echo ""
+      echo "✗ FATAL: SSH key preparation failed"
+      echo "  Run: ./bootstrap keys"
+      echo ""
+      exit 1
+    }
+  fi
 
-  verify_git_access
+  if [[ "${DF_BOOTSTRAP_SSH_VERIFIED:-}" == "1" ]]; then
+    echo "✓ SSH access already verified"
+  else
+    verify_git_access
+  fi
 
   install_trove || {
     echo ""

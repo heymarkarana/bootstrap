@@ -141,7 +141,7 @@ df_bootstrap_ssh_verify() {
     -T "${user}@${host}" 2>&1)" || true
 
   if print -r -- "$out" | grep -qiE \
-    'successfully authenticated|you.?ve successfully authenticated|welcome to gitlab|hi there|Hi .+! You'; then
+    'successfully authenticated|you.?ve successfully authenticated|welcome to gitlab|hi there|forgejo does not provide shell access'; then
     return 0
   fi
   return 1
@@ -179,6 +179,11 @@ df_bootstrap_ssh_prepare() {
 
   _df_bootstrap_ensure_path
   host="$(_df_bootstrap_ssh_resolve_host "$repo_url")" || host=""
+
+  if [[ "${DF_BOOTSTRAP_SSH_VERIFIED:-}" == "1" ]] && df_bootstrap_ssh_verify "$host"; then
+    echo "SSH access to ${host} already verified."
+    return 0
+  fi
 
   if [[ -z "$host" ]]; then
     echo "[DF] Error: cannot determine Git SSH host" >&2
@@ -220,35 +225,63 @@ df_bootstrap_ssh_prepare() {
     return 1
   fi
 
-  echo ""
-  echo "Add the public key above to your Git server, then press Enter to retry."
-  echo "(Ctrl+C to abort)"
-  echo ""
-
+  # curl | bash leaves stdin as a closed pipe — "read" returns immediately and used to
+  # spam "Still cannot authenticate" without the user pressing Enter. Poll instead.
+  local poll_interval="${DF_BOOTSTRAP_SSH_POLL_INTERVAL:-10}"
   local shown_diag=false
-  while true; do
-    read -r
-    if df_bootstrap_ssh_verify "$host"; then
-      echo "SSH access to ${host} verified."
-      export DF_BOOTSTRAP_SSH_VERIFIED=1
-      return 0
-    fi
-    if [[ "$shown_diag" == false ]]; then
-      shown_diag=true
-      local diag
-      diag="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
-        -i "${key_path}" -T "${DF_GIT_SSH_TEST_USER}@${host}" 2>&1)" || true
-      if [[ -n "$diag" ]]; then
-        echo ""
-        echo "SSH response:"
-        echo "$diag"
-        echo ""
+
+  echo ""
+  echo "Add the public key above on ${host} (deploy key or user SSH keys in Forgejo)."
+  if [[ "${DF_BOOTSTRAP_SSH_WAIT_MANUAL:-}" == true ]] && [[ -r /dev/tty ]]; then
+    echo "When the key is added, press Enter to retry (Ctrl+C to abort)."
+    echo ""
+    while true; do
+      read -r < /dev/tty || true
+      if df_bootstrap_ssh_verify "$host"; then
+        echo "SSH access to ${host} verified."
+        export DF_BOOTSTRAP_SSH_VERIFIED=1
+        return 0
       fi
-      echo "Ensure the public key above is added on ${host} (deploy key or user SSH keys), then press Enter."
-    else
-      echo "Still cannot authenticate. Add the key and press Enter again (Ctrl+C to abort)."
+      _df_bootstrap_ssh_show_retry_hint "$host" "$key_path" shown_diag
+      shown_diag=true
+    done
+  else
+    echo "Checking every ${poll_interval}s until SSH works (Ctrl+C to abort)."
+    echo ""
+    while true; do
+      if df_bootstrap_ssh_verify "$host"; then
+        echo "SSH access to ${host} verified."
+        export DF_BOOTSTRAP_SSH_VERIFIED=1
+        return 0
+      fi
+      _df_bootstrap_ssh_show_retry_hint "$host" "$key_path" shown_diag
+      shown_diag=true
+      sleep "$poll_interval"
+    done
+  fi
+}
+
+# First failed verify: print ssh -T diagnostics once; later polls stay quiet.
+_df_bootstrap_ssh_show_retry_hint() {
+  local host="$1"
+  local key_path="$2"
+  local shown_diag="$3"
+
+  if [[ "$shown_diag" != true ]]; then
+    local diag
+    diag="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+      -i "${key_path}" -T "${DF_GIT_SSH_TEST_USER}@${host}" 2>&1)" || true
+    if [[ -n "$diag" ]]; then
+      echo ""
+      echo "SSH response:"
+      echo "$diag"
+      echo ""
     fi
-  done
+    echo "Waiting for key on ${host} — add it in Forgejo, then the next check should succeed."
+    return
+  fi
+
+  echo "Still waiting for SSH access to ${host} ($(date -u +%H:%M:%S) UTC)..."
 }
 
 if [[ -n "$ZSH_VERSION" ]]; then
@@ -257,5 +290,5 @@ if [[ -n "$ZSH_VERSION" ]]; then
     df_bootstrap_public_raw_from_https_repo \
     df_bootstrap_resolve_public_raw \
     df_bootstrap_ssh_prepare df_bootstrap_ssh_verify \
-    _df_bootstrap_ssh_curl_hint >/dev/null 2>&1
+    _df_bootstrap_ssh_show_retry_hint _df_bootstrap_ssh_curl_hint >/dev/null 2>&1
 fi

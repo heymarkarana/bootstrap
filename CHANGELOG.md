@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.9] - 2026-05-30
+
+### Fixed
+- **SSH wait loop** — replace broken `read` on piped stdin with 10s polling until Git SSH works; optional `DF_BOOTSTRAP_SSH_WAIT_MANUAL` uses `/dev/tty`
+- **Cold-start** — pass `DF_BOOTSTRAP_SSH_VERIFIED` into `bootstrap install`; skip duplicate `bootstrap_ssh_prepare` and `verify_git_access`; Forgejo-friendly verify patterns
+
 ## [2.1.8] - 2026-05-30
 
 ### Fixed

@@ -288,6 +288,7 @@ cmd_install() {
   _df_curl_source_bootstrap_ssh
   df_bootstrap_ssh_prepare "${DOTFILES_REPO}" || exit 1
   export DF_BOOTSTRAP_SKIP_GITHARNESS=1
+  export DF_BOOTSTRAP_SSH_VERIFIED=1
 
   _df_curl_ensure_bootstrap_clone
 
@@ -304,6 +305,7 @@ cmd_install() {
     DF_BOOTSTRAP_REPO="$DF_BOOTSTRAP_REPO" \
     DF_BOOTSTRAP_PUBLIC_RAW="$DF_BOOTSTRAP_PUBLIC_RAW" \
     DF_BOOTSTRAP_SKIP_GITHARNESS="${DF_BOOTSTRAP_SKIP_GITHARNESS:-1}" \
+    DF_BOOTSTRAP_SSH_VERIFIED="${DF_BOOTSTRAP_SSH_VERIFIED:-1}" \
     BOOTSTRAP_PROFILE="$profile" \
     ./bootstrap install "$profile"
 }
