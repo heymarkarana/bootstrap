@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.12] - 2026-05-31
+
+### Changed
+- **AGENTS.md** — added full commit workflow section (single-commit preference, version bump, CHANGELOG format, tag+push steps, DECISIONS.md protocol) mirroring the dotFiles AGENTS.md standard.
+
 ## [2.1.11] - 2026-05-30
 
 ### Fixed

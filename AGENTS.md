@@ -124,7 +124,7 @@ curl … | bash -s -- install <profile>        # cold start
 - **No test suite** in this repo — validate changes by running the install flow on a clean machine or VM.
 - Keep `bootstrap` and `bootstrap-curl.sh` shellcheck-clean (bash target).
 - **No secrets in git** — repo URLs and credentials belong in `~/.bootstrap.config`.
-- **Commits:** follow repo changelog/version policy (Keep a Changelog, semver). Do not commit unless explicitly asked.
+- **Commits:** follow the workflow below. Do not commit or push unless the user has explicitly asked.
 
 ---
 
@@ -145,3 +145,76 @@ bootstrap keys                # SSH key setup only
 # Cold start (curl pipe)
 curl -fsSL "${DF_BOOTSTRAP_PUBLIC_RAW}/scripts/bootstrap-curl.sh" | bash -s -- install minimal
 ```
+
+---
+
+## Commit workflow
+
+Follow these steps in order for every commit to this repository.
+
+### Prefer single commits
+
+Batch related changes into one commit unless the changes are genuinely independent. When in doubt, one commit is better than two.
+
+### Step 1 — Version bump
+
+The **only** source of truth for the version is the `VERSION` file at the repo root (plain semver string, e.g. `2.1.11`). Do not hardcode the version anywhere else.
+
+After bumping, verify no stale copies exist:
+
+```bash
+grep -rn "OLD_VERSION" . | grep -v CHANGELOG | grep -v ".git"
+```
+
+Use a **patch bump** by default. Use `minor` or `major` only when warranted.
+
+### Step 2 — Update CHANGELOG
+
+Add a new entry at the **top** of `CHANGELOG.md` using [Keep a Changelog](https://keepachangelog.com/) format:
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### Added / Changed / Fixed / Removed
+- **Short title** — one-sentence description of what changed.
+```
+
+Do not edit, reorder, or remove existing entries.
+
+### Step 3 — Stage specific files
+
+Never use `git add .` or `git add -A`. Stage only the files you changed, plus `VERSION` and `CHANGELOG.md`.
+
+### Step 4 — Commit message
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+<type>(<scope>): <short summary — 72 chars max>
+
+<optional body>
+```
+
+Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `style`
+
+### Step 5 — Tag and push
+
+```bash
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push && git push --tags
+```
+
+### Pre-commit checklist
+
+- [ ] No secrets, credentials, or homelab-specific values in staged files
+- [ ] `VERSION` bumped
+- [ ] `CHANGELOG.md` updated with new entry at top
+- [ ] `bootstrap` and `bootstrap-curl.sh` pass shellcheck (bash target)
+
+### Decisions and discrepancies
+
+When a commit involves a non-obvious trade-off, ambiguity, or a deliberate deviation from any guideline above:
+
+1. Surface the question to the user **before** committing
+2. Wait for explicit acknowledgement
+3. Document the decision in `DECISIONS.md` (create if absent) using the format defined there
