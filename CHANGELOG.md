@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-05-30
+
+### Documentation
+- **AGENTS.md created** — documents what bootstrap is (cold-start installer), both entry points (direct and curl-pipe), full install sequence, documentation map, and four enforced architecture rules: no hardcoding, no homelab identity in code, keep bootstrap pre-dotFiles minimal (no df.env/Trove/Beskar assumptions), and shell discipline (bash vs. zsh file boundaries).
+
 ## [2.1.9] - 2026-05-30
 
 ### Fixed
