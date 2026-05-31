@@ -1519,8 +1519,6 @@ install_dotfiles() {
       echo "Warning: Install entrypoint not found. Manual setup required."
       echo "Please run: cd ${TARGET} && ./setup ${bootstrap_profile}"
     fi
-
-    switch_to_zsh
   else
     echo "Git clone failed. Exiting."
     exit 1

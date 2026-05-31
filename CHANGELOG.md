@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.11] - 2026-05-30
+
+### Fixed
+- **Dead `switch_to_zsh` call removed** — the call after the `exec ./setup` / `exec zsh install.zsh` block was unreachable: a successful `exec` replaces the process and never returns, so `switch_to_zsh` only fired when no install entrypoint was found. Removed the dead call; the entrypoint-not-found warning already handles that path.
+
 ## [2.1.10] - 2026-05-30
 
 ### Documentation
