@@ -89,7 +89,7 @@ configure_repository() {
   echo "Note: You can use either HTTPS or SSH based on your preference."
   echo ""
 
-  read -p "Repository URL: " repo_url
+  read -p "Repository URL: " repo_url < /dev/tty
 
   if [[ -z "$repo_url" ]]; then
     echo "Error: Repository URL is required"
@@ -100,7 +100,7 @@ configure_repository() {
 
   # Offer to save configuration
   echo ""
-  read -p "Save this configuration to ~/.bootstrap.config? (Y/n): " save_config
+  read -p "Save this configuration to ~/.bootstrap.config? (Y/n): " save_config < /dev/tty
 
   if [[ ! "$save_config" =~ ^[nN]$ ]]; then
     cat > "$config_file" <<EOF
@@ -561,7 +561,7 @@ setup_1password_optional() {
     echo ""
   fi
 
-  read -p "Install 1Password CLI? (Y/n): " install_op
+  read -p "Install 1Password CLI? (Y/n): " install_op < /dev/tty
 
   if [[ "$install_op" =~ ^[nN]$ ]]; then
     echo "⊘ Skipping 1Password CLI - will use manual entry for secrets"
@@ -662,7 +662,7 @@ setup_1password_optional() {
     echo ""
   fi
 
-  read -p "Add 1Password account now? (Y/n): " add_account
+  read -p "Add 1Password account now? (Y/n): " add_account < /dev/tty
 
   if [[ "$add_account" =~ ^[nN]$ ]]; then
     echo ""
@@ -780,7 +780,7 @@ verify_git_access() {
       echo "  1. Continue with HTTPS (will be converted to SSH later)"
       echo "  2. Set up SSH keys first and retry"
       echo ""
-      read -p "Continue anyway? (Y/n): " continue_choice
+      read -p "Continue anyway? (Y/n): " continue_choice < /dev/tty
       if [[ "$continue_choice" =~ ^[nN]$ ]]; then
         exit 1
       fi
@@ -1292,7 +1292,7 @@ complete_bootstrap_and_offer_dotfiles_install() {
   echo "  1. Run dotFiles installation now"
   echo "  2. Exit (install later manually)"
   echo ""
-  read -p "Choose option (1/2): " run_dotfiles
+  read -p "Choose option (1/2): " run_dotfiles < /dev/tty
 
   case "$run_dotfiles" in
     1)
@@ -1352,7 +1352,7 @@ install_dotfiles() {
     echo "  2. Refresh dotFiles (delete and re-download)"
     echo "  3. Exit"
     echo ""
-    read -p "Choose option (1/2/3): " dotfiles_choice
+    read -p "Choose option (1/2/3): " dotfiles_choice < /dev/tty
 
     case "$dotfiles_choice" in
       1)
@@ -1382,7 +1382,7 @@ install_dotfiles() {
         echo ""
         echo "Refreshing dotFiles (this will delete and re-download)..."
         echo ""
-        read -p "Are you sure? This will delete ${TARGET} (y/N): " confirm_delete
+        read -p "Are you sure? This will delete ${TARGET} (y/N): " confirm_delete < /dev/tty
         if [[ ! "$confirm_delete" =~ ^[yY]$ ]]; then
           echo "Refresh cancelled. Exiting."
           exit 0
